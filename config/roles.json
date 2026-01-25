@@ -1,0 +1,43 @@
+{
+  "description": "Configure which roles to search for. Edit this file to match your interests.",
+
+  "include_keywords": [
+    "software", "engineer", "developer", "swe",
+    "data", "machine learning", "ml", "ai", "artificial intelligence",
+    "quant", "quantitative", "trading",
+    "backend", "frontend", "full stack", "fullstack",
+    "platform", "infrastructure", "systems",
+    "research", "science", "scientist",
+    "analytics", "analyst",
+    "devops", "sre", "cloud",
+    "mobile", "ios", "android", "web",
+    "product", "program"
+  ],
+
+  "exclude_keywords": [
+    "marketing", "sales", "communications", "hr", "human resources",
+    "legal", "finance", "accounting", "recruiting", "talent",
+    "content", "social media", "graphic",
+    "customer", "support", "success", "admin"
+  ],
+
+  "must_contain": ["intern"],
+
+  "examples": {
+    "for_design_roles": {
+      "include_keywords": ["design", "ux", "ui", "product design", "visual", "graphic"],
+      "exclude_keywords": ["engineering", "software", "backend"],
+      "must_contain": ["intern"]
+    },
+    "for_finance_roles": {
+      "include_keywords": ["finance", "accounting", "investment", "banking", "analyst"],
+      "exclude_keywords": ["software", "engineering"],
+      "must_contain": ["intern"]
+    },
+    "for_marketing_roles": {
+      "include_keywords": ["marketing", "growth", "brand", "content", "social media"],
+      "exclude_keywords": ["engineering", "software"],
+      "must_contain": ["intern"]
+    }
+  }
+}

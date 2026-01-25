@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lever Application Mock - Software Engineering Intern (Summer 2026)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fafafa;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .company-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin: 0 0 10px;
+            color: #222;
+        }
+        .header .location {
+            color: #666;
+            font-size: 16px;
+        }
+        .header .department {
+            display: inline-block;
+            background: #e8e8e8;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .application-form {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .section-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .application-question {
+            margin-bottom: 24px;
+        }
+        .application-question label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .application-question label .required {
+            color: #e53e3e;
+        }
+        .application-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+        .application-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .application-input::placeholder {
+            color: #a0aec0;
+        }
+        textarea.application-input {
+            resize: vertical;
+            min-height: 120px;
+        }
+        input[type="file"] {
+            padding: 12px;
+            background: #fafafa;
+        }
+        .file-upload {
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            transition: all 0.2s;
+        }
+        .file-upload:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .file-upload input {
+            display: none;
+        }
+        .file-upload label {
+            cursor: pointer;
+            color: #667eea;
+            font-weight: 500;
+        }
+        .file-upload p {
+            margin: 10px 0 0;
+            color: #888;
+            font-size: 13px;
+        }
+        .divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 30px 0;
+        }
+        .application-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .application-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .powered-by {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+        .links-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .links-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-logo">TC</div>
+        <h1>Software Engineering Intern</h1>
+        <div class="location">San Francisco, CA (Hybrid)</div>
+        <div class="department">Engineering - Summer 2026</div>
+    </div>
+
+    <form id="lever-application" class="application-form" method="POST" enctype="multipart/form-data">
+
+        <div class="section-label">Basic Information</div>
+
+        <div class="application-question">
+            <label>Full Name <span class="required">*</span></label>
+            <input type="text" name="name" class="application-input" required placeholder="Your full name">
+        </div>
+
+        <div class="application-question">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" name="email" class="application-input" required placeholder="you@example.com">
+        </div>
+
+        <div class="application-question">
+            <label>Phone</label>
+            <input type="tel" name="phone" class="application-input" placeholder="+1 (555) 000-0000">
+        </div>
+
+        <div class="application-question">
+            <label>Current Location</label>
+            <input type="text" name="location" class="application-input" placeholder="City, State">
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Resume</div>
+
+        <div class="application-question">
+            <label>Resume/CV <span class="required">*</span></label>
+            <div class="file-upload" onclick="document.getElementById('resume-input').click()">
+                <label for="resume-input">Click to upload or drag and drop</label>
+                <input type="file" id="resume-input" name="resume" accept=".pdf,.doc,.docx" required>
+                <p>PDF, DOC, DOCX up to 10MB</p>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Links</div>
+
+        <div class="links-section">
+            <div class="application-question">
+                <label>LinkedIn</label>
+                <input type="url" name="urls[LinkedIn]" class="application-input" placeholder="https://linkedin.com/in/...">
+            </div>
+
+            <div class="application-question">
+                <label>GitHub</label>
+                <input type="url" name="urls[GitHub]" class="application-input" placeholder="https://github.com/...">
+            </div>
+
+            <div class="application-question">
+                <label>Portfolio</label>
+                <input type="url" name="urls[Portfolio]" class="application-input" placeholder="https://yourportfolio.com">
+            </div>
+
+            <div class="application-question">
+                <label>Other Website</label>
+                <input type="url" name="urls[Other]" class="application-input" placeholder="https://...">
+            </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Additional Questions</div>
+
+        <div class="application-question">
+            <label>Are you authorized to work in the United States? <span class="required">*</span></label>
+            <select name="work_authorization" class="application-input" required>
+                <option value="">Select an option</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+            </select>
+        </div>
+
+        <div class="application-question">
+            <label>Will you require visa sponsorship now or in the future?</label>
+            <select name="visa_sponsorship" class="application-input">
+                <option value="">Select an option</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+            </select>
+        </div>
+
+        <div class="application-question">
+            <label>Expected Graduation Date <span class="required">*</span></label>
+            <select name="graduation_date" class="application-input" required>
+                <option value="">Select graduation date</option>
+                <option value="2025-spring">Spring 2025</option>
+                <option value="2025-fall">Fall 2025</option>
+                <option value="2026-spring">Spring 2026</option>
+                <option value="2026-fall">Fall 2026</option>
+                <option value="2027-spring">Spring 2027</option>
+                <option value="2027-fall">Fall 2027</option>
+            </select>
+        </div>
+
+        <div class="application-question">
+            <label>University / School <span class="required">*</span></label>
+            <input type="text" name="school" class="application-input" required placeholder="Your university name">
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Tell Us More</div>
+
+        <div class="application-question">
+            <label>Why are you interested in this role?</label>
+            <textarea name="comments" class="application-input" placeholder="Share what excites you about this opportunity..."></textarea>
+        </div>
+
+        <div class="application-question">
+            <label>How did you hear about us?</label>
+            <select name="source" class="application-input">
+                <option value="">Select an option</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="glassdoor">Glassdoor</option>
+                <option value="friend">Friend or Colleague</option>
+                <option value="university">University Career Fair</option>
+                <option value="social">Social Media</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <button type="submit" class="application-submit">Submit Application</button>
+    </form>
+
+    <div class="powered-by">
+        Mock Lever Application Form (POC Testing)
+    </div>
+
+    <script>
+        document.getElementById('lever-application').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('POC TEST: Form submission intercepted!\n\nThis is a mock form - no data was actually submitted.\n\nIn production, this would submit to Lever.');
+            console.log('Form data:', new FormData(this));
+        });
+
+        // File upload display
+        document.getElementById('resume-input').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name;
+            if (fileName) {
+                e.target.parentElement.querySelector('label').textContent = fileName;
+            }
+        });
+    </script>
+</body>
+</html>

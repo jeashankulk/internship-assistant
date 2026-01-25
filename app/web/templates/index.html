@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internship Application Assistant</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 20px 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-discover {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-discover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-discover:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .job-list {
+            margin-top: 20px;
+        }
+
+        .job-list h2 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .section-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #667eea;
+            margin: 25px 0 10px;
+            padding-left: 5px;
+        }
+
+        .job-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .job-card:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateX(5px);
+        }
+
+        .job-card.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.15);
+        }
+
+        .job-card.manual {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .job-card.ai-searched {
+            border-left: 4px solid #667eea;
+        }
+
+        .job-info {
+            flex: 1;
+        }
+
+        .job-company {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .job-role {
+            color: #aaa;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .job-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .job-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .platform-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .platform-greenhouse { background: #3ab77d; color: white; }
+        .platform-lever { background: #5d5dff; color: white; }
+        .platform-workday { background: #ff6b35; color: white; }
+        .platform-other { background: #666; color: white; }
+
+        .job-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #888;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .error-message {
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(220, 38, 38, 0.5);
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            color: #86efac;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-message {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #93c5fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Internship Application Assistant</h1>
+            <p>Your job application todo list</p>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number" id="pending-count">-</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="manual-count">-</div>
+                    <div class="stat-label">Manual</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="ai-count">-</div>
+                    <div class="stat-label">AI Found</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="next-btn" onclick="openNext()">
+                ▶ Open Next Application
+            </button>
+            <button class="btn btn-secondary" onclick="openAddModal()">
+                + Add Job Manually
+            </button>
+            <button class="btn btn-discover" id="discover-btn" onclick="discoverJobs()">
+                🔍 Find Jobs
+            </button>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div class="job-list" id="job-list">
+            <div class="loading">Loading applications...</div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadJobs()" title="Refresh list">↻</button>
+
+    <!-- Add Job Modal -->
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <h2>Add Job Manually</h2>
+            <form id="add-form" onsubmit="addJob(event)">
+                <div class="form-group">
+                    <label>Company Name *</label>
+                    <input type="text" id="add-company" required placeholder="e.g., Google">
+                </div>
+                <div class="form-group">
+                    <label>Role Title</label>
+                    <input type="text" id="add-role" placeholder="e.g., Software Engineering Intern">
+                </div>
+                <div class="form-group">
+                    <label>Application Link *</label>
+                    <input type="url" id="add-link" required placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Platform</label>
+                    <select id="add-platform">
+                        <option value="other">Other</option>
+                        <option value="greenhouse">Greenhouse</option>
+                        <option value="lever">Lever</option>
+                        <option value="workday">Workday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date Posted</label>
+                    <input type="date" id="add-date">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Add Job</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Questions Modal (for unfilled autofill fields) -->
+    <div class="modal" id="questions-modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h2>📝 Additional Questions</h2>
+            <p style="color: #888; margin-bottom: 20px;">These fields couldn't be auto-filled. Your answers will be saved for future applications.</p>
+            <div id="questions-container"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" onclick="submitAnswers()">Submit Answers</button>
+                <button type="button" class="btn btn-secondary" onclick="skipQuestions()">Skip (Fill Manually)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jobs = [];
+        let currentIndex = 0;
+
+        // Load jobs on page load
+        document.addEventListener('DOMContentLoaded', loadJobs);
+
+        async function loadJobs() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            try {
+                const response = await fetch('/api/jobs');
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    jobs = [];
+                } else {
+                    jobs = data.jobs;
+                    hideError();
+                }
+
+                renderJobs();
+                updateStats();
+            } catch (error) {
+                showError('Failed to load jobs: ' + error.message);
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        function renderJobs() {
+            const container = document.getElementById('job-list');
+
+            if (jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No pending applications</h3>
+                        <p>Add jobs manually or run the discovery script to find opportunities.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Separate manual and AI jobs
+            const manualJobs = jobs.filter(j => j.is_manual);
+            const aiJobs = jobs.filter(j => !j.is_manual);
+
+            let html = '';
+
+            if (manualJobs.length > 0) {
+                html += '<div class="section-label">⭐ Manually Added (Priority)</div>';
+                manualJobs.forEach((job, index) => {
+                    html += renderJobCard(job, index, 'manual');
+                });
+            }
+
+            if (aiJobs.length > 0) {
+                html += '<div class="section-label">🤖 AI Discovered</div>';
+                aiJobs.forEach((job, index) => {
+                    html += renderJobCard(job, manualJobs.length + index, 'ai-searched');
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderJobCard(job, index, type) {
+            const platformClass = `platform-${job.platform || 'other'}`;
+            const isActive = index === currentIndex ? 'active' : '';
+
+            return `
+                <div class="job-card ${type} ${isActive}" onclick="selectJob(${index})">
+                    <div class="job-info">
+                        <div class="job-company">${escapeHtml(job.company)}</div>
+                        <div class="job-role">${escapeHtml(job.role || 'Position')}</div>
+                        <div class="job-meta">
+                            <span class="platform-badge ${platformClass}">${job.platform || 'other'}</span>
+                            ${job.date_posted ? `<span>📅 ${job.date_posted}</span>` : ''}
+                            <span>${job.source}</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-small btn-primary" onclick="event.stopPropagation(); openJob(${index})">
+                            Open
+                        </button>
+                        <button class="btn btn-small btn-success" onclick="event.stopPropagation(); markApplied(${index})">
+                            ✓ Applied
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateStats() {
+            document.getElementById('pending-count').textContent = jobs.length;
+            document.getElementById('manual-count').textContent = jobs.filter(j => j.is_manual).length;
+            document.getElementById('ai-count').textContent = jobs.filter(j => !j.is_manual).length;
+
+            // Update next button
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.disabled = jobs.length === 0;
+        }
+
+        function selectJob(index) {
+            currentIndex = index;
+            renderJobs();
+        }
+
+        function openNext() {
+            if (jobs.length > 0) {
+                openJob(0);  // Always open the first one (highest priority)
+            }
+        }
+
+        let currentUnfilledFields = [];
+
+        async function openJob(index) {
+            const job = jobs[index];
+            if (!job) return;
+
+            // Show loading state
+            showInfo('Opening application and running autofill...');
+
+            try {
+                // Open the link with platform info
+                const response = await fetch('/api/open', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({link: job.link, platform: job.platform})
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showError(data.error || 'Failed to open application');
+                    return;
+                }
+
+                // Show message about how it opened
+                if (data.method === 'autofill') {
+                    if (data.unfilled_fields && data.unfilled_fields.length > 0) {
+                        // Show questions modal
+                        currentUnfilledFields = data.unfilled_fields;
+                        showQuestionsModal(data.unfilled_fields);
+                        showSuccess(`Filled ${data.filled_count}/${data.total_fields} fields. Please answer the remaining questions.`);
+                    } else {
+                        showSuccess(`All ${data.filled_count} fields filled! Review and submit in the browser.`);
+                    }
+                } else if (data.message) {
+                    showInfo(data.message);
+                }
+
+                // Highlight this job
+                currentIndex = index;
+                renderJobs();
+            } catch (error) {
+                showError('Failed to open link: ' + error.message);
+            }
+        }
+
+        function showQuestionsModal(fields) {
+            const container = document.getElementById('questions-container');
+            let html = '';
+
+            fields.forEach((field, index) => {
+                const required = field.required ? '<span style="color: #f87171;">*</span>' : '';
+
+                if (field.type === 'select' && field.options && field.options.length > 0) {
+                    // Dropdown
+                    html += `
+                        <div class="form-group">
+                            <label>${escapeHtml(field.label)} ${required}</label>
+                            <select id="question-${index}" data-selector="${escapeHtml(field.selector)}">
+                                <option value="">Select an option...</option>
+                                ${field.options.map(opt =>
+                                    `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.text)}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    `;
+                } else if (field.type === 'textarea') {
+                    // Text area
+                    html += `
+                        <div class="form-group">
+                            <label>${escapeHtml(field.label)} ${required}</label>
+                            <textarea id="question-${index}" data-selector="${escapeHtml(field.selector)}"
+                                rows="3" placeholder="Enter your answer..."></textarea>
+                        </div>
+                    `;
+                } else {
+                    // Text input
+                    html += `
+                        <div class="form-group">
+                            <label>${escapeHtml(field.label)} ${required}</label>
+                            <input type="text" id="question-${index}" data-selector="${escapeHtml(field.selector)}"
+                                placeholder="Enter your answer...">
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+            document.getElementById('questions-modal').classList.add('active');
+        }
+
+        async function submitAnswers() {
+            const answers = {};
+
+            currentUnfilledFields.forEach((field, index) => {
+                const input = document.getElementById(`question-${index}`);
+                if (input && input.value) {
+                    answers[field.selector] = input.value;
+                }
+            });
+
+            try {
+                const response = await fetch('/api/autofill/answer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({answers})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(data.message || 'Answers submitted! Review and submit in the browser.');
+                } else {
+                    showError(data.error || 'Failed to submit answers');
+                }
+            } catch (error) {
+                showError('Failed to submit answers: ' + error.message);
+            }
+
+            closeQuestionsModal();
+        }
+
+        function skipQuestions() {
+            closeQuestionsModal();
+            showInfo('Fill the remaining fields manually in the browser.');
+        }
+
+        function closeQuestionsModal() {
+            document.getElementById('questions-modal').classList.remove('active');
+            document.getElementById('questions-container').innerHTML = '';
+            currentUnfilledFields = [];
+        }
+
+        async function markApplied(index) {
+            const job = jobs[index];
+            if (!job) return;
+
+            if (!confirm(`Mark "${job.company} - ${job.role}" as applied?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/applied', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({link: job.link})
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Remove from list and reload
+                    await loadJobs();
+                } else {
+                    showError('Failed to mark as applied: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Failed to mark as applied: ' + error.message);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('add-modal').classList.add('active');
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.remove('active');
+            document.getElementById('add-form').reset();
+        }
+
+        async function addJob(event) {
+            event.preventDefault();
+
+            const job = {
+                company: document.getElementById('add-company').value,
+                role: document.getElementById('add-role').value,
+                link: document.getElementById('add-link').value,
+                platform: document.getElementById('add-platform').value,
+                date_posted: document.getElementById('add-date').value,
+            };
+
+            try {
+                const response = await fetch('/api/jobs/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(job)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    closeAddModal();
+                    await loadJobs();
+                } else {
+                    showError('Failed to add job: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Failed to add job: ' + error.message);
+            }
+        }
+
+        async function discoverJobs() {
+            const btn = document.getElementById('discover-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🔍 Searching...';
+
+            try {
+                const response = await fetch('/api/discover', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    if (data.count > 0) {
+                        btn.innerHTML = `✓ Found ${data.count} jobs!`;
+                        await loadJobs();
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }, 2000);
+                    } else {
+                        btn.innerHTML = 'No new jobs found';
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }, 2000);
+                    }
+                } else {
+                    showError('Discovery failed: ' + (data.error || 'Unknown error'));
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                showError('Discovery failed: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
+            setTimeout(hideError, 5000);
+        }
+
+        function showSuccess(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="success-message">${escapeHtml(message)}</div>`;
+            setTimeout(hideError, 3000);
+        }
+
+        function showInfo(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="info-message">${escapeHtml(message)}</div>`;
+            setTimeout(hideError, 3000);
+        }
+
+        function hideError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'n' || e.key === 'Enter') {
+                openNext();
+            } else if (e.key === 'ArrowDown') {
+                if (currentIndex < jobs.length - 1) {
+                    selectJob(currentIndex + 1);
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (currentIndex > 0) {
+                    selectJob(currentIndex - 1);
+                }
+            } else if (e.key === 'o') {
+                openJob(currentIndex);
+            } else if (e.key === 'a') {
+                markApplied(currentIndex);
+            } else if (e.key === 'r') {
+                loadJobs();
+            }
+        });
+    </script>
+</body>
+</html>
