@@ -323,6 +323,20 @@ class GreenhouseClient:
         except json.JSONDecodeError as e:
             return [], f"Invalid JSON: {e}"
 
+    def fetch_job_by_id(self, company: str, job_id: str) -> tuple[dict | None, str | None]:
+        """Fetch a single job by ID. Returns (job_data, error_message)."""
+        url = f"{self.BASE_API_URL}/{company}/jobs/{job_id}"
+        try:
+            response = self.session.get(url, timeout=15)
+            if response.status_code == 404:
+                return None, f"Job not found: {company}/{job_id}"
+            response.raise_for_status()
+            return response.json(), None
+        except requests.exceptions.RequestException as e:
+            return None, str(e)
+        except json.JSONDecodeError as e:
+            return None, f"Invalid JSON: {e}"
+
     def parse_job(self, job: dict) -> JobListing:
         """Parse a Greenhouse job into JobListing."""
         title = job.get("title", "")
@@ -403,6 +417,20 @@ class LeverClient:
         except json.JSONDecodeError as e:
             return [], f"Invalid JSON: {e}"
 
+    def fetch_job_by_id(self, company: str, posting_id: str) -> tuple[dict | None, str | None]:
+        """Fetch a single job by posting ID. Returns (job_data, error_message)."""
+        url = f"{self.BASE_API_URL}/{company}/{posting_id}"
+        try:
+            response = self.session.get(url, timeout=15)
+            if response.status_code == 404:
+                return None, f"Job not found: {company}/{posting_id}"
+            response.raise_for_status()
+            return response.json(), None
+        except requests.exceptions.RequestException as e:
+            return None, str(e)
+        except json.JSONDecodeError as e:
+            return None, f"Invalid JSON: {e}"
+
     def parse_job(self, job: dict) -> JobListing:
         """Parse a Lever job into JobListing."""
         title = job.get("text", "")
@@ -442,6 +470,249 @@ class LeverClient:
             if any(kw in text for kw in keywords):
                 return role
         return "OTHER"
+
+
+# =============================================================================
+# HTML to Plain Text Utility
+# =============================================================================
+
+
+def html_to_plain_text(html: str) -> str:
+    """
+    Convert HTML to clean plain text.
+
+    - Decodes HTML entities first (handles double-escaped content)
+    - Converts block elements (p, div, br, li, h1-h6) to newlines
+    - Strips all HTML tags
+    - Normalizes whitespace while preserving paragraph breaks
+    """
+    import re
+    import html as html_module
+
+    if not html:
+        return ""
+
+    text = html
+
+    # First, decode HTML entities (may need multiple passes for double-encoded content)
+    # e.g., &lt;p&gt; -> <p>, &amp;nbsp; -> &nbsp; -> (space)
+    prev_text = None
+    while prev_text != text:
+        prev_text = text
+        text = html_module.unescape(text)
+
+    # Convert block-level elements to newlines
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', '\n\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</div>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</li>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</h[1-6]>', '\n\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<li[^>]*>', '• ', text, flags=re.IGNORECASE)
+
+    # Strip all remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+
+    # Normalize whitespace: collapse multiple spaces/tabs to single space
+    text = re.sub(r'[ \t]+', ' ', text)
+
+    # Normalize newlines: collapse 3+ newlines to 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    # Strip leading/trailing whitespace from each line and overall
+    lines = [line.strip() for line in text.split('\n')]
+    text = '\n'.join(lines).strip()
+
+    return text
+
+
+# =============================================================================
+# URL Parsing Utilities
+# =============================================================================
+
+
+def parse_job_url(url: str) -> dict | None:
+    """
+    Parse a Greenhouse or Lever job URL to extract platform, company, and job_id.
+
+    Returns:
+        dict with keys: 'platform' ('greenhouse' | 'lever'), 'company', 'job_id'
+        None if URL cannot be parsed
+
+    Supported URL formats:
+        - https://boards.greenhouse.io/{company}/jobs/{job_id}
+        - https://{company}.com/...?gh_jid={job_id}
+        - https://jobs.lever.co/{company}/{posting_id}
+    """
+    import re
+    from urllib.parse import urlparse, parse_qs
+
+    if not url:
+        return None
+
+    parsed = urlparse(url)
+    url_lower = url.lower()
+
+    # Greenhouse pattern 1: boards.greenhouse.io/{company}/jobs/{job_id}
+    if 'greenhouse.io' in url_lower:
+        match = re.search(r'boards\.greenhouse\.io/([^/]+)/jobs/(\d+)', url, re.IGNORECASE)
+        if match:
+            return {
+                'platform': 'greenhouse',
+                'company': match.group(1).lower(),
+                'job_id': match.group(2)
+            }
+
+    # Greenhouse pattern 2: custom domain with gh_jid parameter
+    if 'gh_jid' in url_lower:
+        query_params = parse_qs(parsed.query)
+        job_id = query_params.get('gh_jid', query_params.get('GH_JID', [None]))[0]
+        if job_id:
+            # Extract company from domain
+            domain = parsed.netloc.lower()
+            parts = domain.replace('www.', '').split('.')
+            company = parts[0] if parts else None
+            if company:
+                return {
+                    'platform': 'greenhouse',
+                    'company': company,
+                    'job_id': job_id
+                }
+
+    # Lever pattern: jobs.lever.co/{company}/{posting_id}
+    if 'jobs.lever.co' in url_lower:
+        match = re.search(r'jobs\.lever\.co/([^/]+)/([a-f0-9-]+)', url, re.IGNORECASE)
+        if match:
+            return {
+                'platform': 'lever',
+                'company': match.group(1).lower(),
+                'job_id': match.group(2)
+            }
+
+    return None
+
+
+def fetch_job_details(url: str) -> dict:
+    """
+    Fetch job details from a Greenhouse or Lever URL.
+
+    Returns dict with:
+        - success: bool
+        - platform: 'greenhouse' | 'lever' | None
+        - company: str
+        - role: str (job title)
+        - description: str (plain text or HTML)
+        - location: str | None
+        - error: str | None
+    """
+    parsed = parse_job_url(url)
+
+    if not parsed:
+        return {
+            'success': False,
+            'error': 'Could not parse URL. Supported: Greenhouse and Lever job URLs.',
+            'platform': None,
+            'company': '',
+            'role': '',
+            'description': '',
+            'location': None,
+        }
+
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    # Create session with retry logic for transient SSL errors
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'application/json',
+    })
+
+    platform = parsed['platform']
+    company = parsed['company']
+    job_id = parsed['job_id']
+
+    if platform == 'greenhouse':
+        client = GreenhouseClient(session)
+        job_data, error = client.fetch_job_by_id(company, job_id)
+
+        if error:
+            return {
+                'success': False,
+                'error': error,
+                'platform': platform,
+                'company': company,
+                'role': '',
+                'description': '',
+                'location': None,
+            }
+
+        # Extract fields from Greenhouse response
+        title = job_data.get('title', '')
+        content = job_data.get('content', '')  # HTML description
+        location = job_data.get('location', {}).get('name') if job_data.get('location') else None
+
+        # Convert HTML to plain text
+        description = html_to_plain_text(content)
+
+        return {
+            'success': True,
+            'platform': platform,
+            'company': company.title(),
+            'role': title,
+            'description': description,
+            'location': location,
+            'error': None,
+        }
+
+    elif platform == 'lever':
+        client = LeverClient(session)
+        job_data, error = client.fetch_job_by_id(company, job_id)
+
+        if error:
+            return {
+                'success': False,
+                'error': error,
+                'platform': platform,
+                'company': company,
+                'role': '',
+                'description': '',
+                'location': None,
+            }
+
+        # Extract fields from Lever response
+        title = job_data.get('text', '')
+        raw_description = job_data.get('descriptionPlain', '') or job_data.get('description', '')
+        description = html_to_plain_text(raw_description)
+        categories = job_data.get('categories', {})
+        location = categories.get('location') if categories else None
+
+        return {
+            'success': True,
+            'platform': platform,
+            'company': company.title(),
+            'role': title,
+            'description': description,
+            'location': location,
+            'error': None,
+        }
+
+    return {
+        'success': False,
+        'error': f'Unknown platform: {platform}',
+        'platform': platform,
+        'company': '',
+        'role': '',
+        'description': '',
+        'location': None,
+    }
 
 
 # =============================================================================

@@ -33,9 +33,11 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 # Sheet names
 MANUAL_SHEET = "Manual"
 AI_SEARCHED_SHEET = "AI Searched"
+APPLIED_SHEET = "Applied"
 
 # Column headers
 HEADERS = ["Company", "Role", "Link", "Status", "Date Posted", "Date Added", "Platform"]
+APPLIED_HEADERS = ["Company", "Role", "Link", "Date Applied", "Platform", "Job Description"]
 
 
 @dataclass
@@ -78,6 +80,42 @@ class JobApplication:
         )
 
 
+@dataclass
+class AppliedJob:
+    """Represents a completed job application with description."""
+    company: str
+    role: str
+    link: str
+    date_applied: str = ""
+    platform: str = ""
+    job_description: str = ""
+
+    def to_row(self) -> list:
+        """Convert to spreadsheet row."""
+        return [
+            self.company,
+            self.role,
+            self.link,
+            self.date_applied or datetime.now().strftime("%Y-%m-%d"),
+            self.platform,
+            self.job_description,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "AppliedJob":
+        """Create from spreadsheet row."""
+        while len(row) < 6:
+            row.append("")
+        return cls(
+            company=row[0] if row[0] else "",
+            role=row[1] if row[1] else "",
+            link=row[2] if row[2] else "",
+            date_applied=row[3] if row[3] else "",
+            platform=row[4] if row[4] else "",
+            job_description=row[5] if row[5] else "",
+        )
+
+
 class SheetsSync:
     """Handles Google Sheets synchronization."""
 
@@ -89,6 +127,9 @@ class SheetsSync:
 
     def _authenticate(self):
         """Authenticate with Google Sheets API."""
+        import time
+        import ssl
+
         # Load existing token
         if TOKEN_PATH.exists():
             self.creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
@@ -96,7 +137,16 @@ class SheetsSync:
         # If no valid credentials, get new ones
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
-                self.creds.refresh(Request())
+                # Retry token refresh up to 3 times for transient SSL errors
+                for attempt in range(3):
+                    try:
+                        self.creds.refresh(Request())
+                        break
+                    except ssl.SSLError:
+                        if attempt < 2:
+                            time.sleep(1)  # Wait before retry
+                        else:
+                            raise
             else:
                 if not CREDENTIALS_PATH.exists():
                     raise FileNotFoundError(
@@ -113,24 +163,37 @@ class SheetsSync:
             with open(TOKEN_PATH, 'w') as token:
                 token.write(self.creds.to_json())
 
-        self.service = build('sheets', 'v4', credentials=self.creds)
+        # Build the service with retry logic for transient SSL errors
+        for attempt in range(3):
+            try:
+                self.service = build('sheets', 'v4', credentials=self.creds)
+                break
+            except ssl.SSLError:
+                if attempt < 2:
+                    time.sleep(1)  # Wait before retry
+                else:
+                    raise
 
     def _ensure_headers(self, sheet_name: str):
         """Ensure the sheet has headers."""
+        # Use different headers for Applied sheet
+        headers = APPLIED_HEADERS if sheet_name == APPLIED_SHEET else HEADERS
+        col_range = "A1:F1" if sheet_name == APPLIED_SHEET else "A1:G1"
+
         try:
             result = self.service.spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id,
-                range=f"{sheet_name}!A1:G1"
+                range=f"{sheet_name}!{col_range}"
             ).execute()
 
             values = result.get('values', [])
-            if not values or values[0] != HEADERS:
+            if not values or values[0] != headers:
                 # Set headers
                 self.service.spreadsheets().values().update(
                     spreadsheetId=self.spreadsheet_id,
-                    range=f"{sheet_name}!A1:G1",
+                    range=f"{sheet_name}!{col_range}",
                     valueInputOption='RAW',
-                    body={'values': [HEADERS]}
+                    body={'values': [headers]}
                 ).execute()
         except HttpError as e:
             if 'Unable to parse range' in str(e):
@@ -286,11 +349,83 @@ class SheetsSync:
         except HttpError as e:
             print(f"Error adding jobs: {e}")
 
+    def get_applied_jobs(self) -> list[AppliedJob]:
+        """Get all applied jobs from the Applied sheet."""
+        self._ensure_headers(APPLIED_SHEET)
+
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{APPLIED_SHEET}!A2:F1000"
+            ).execute()
+
+            rows = result.get('values', [])
+            return [AppliedJob.from_row(row) for row in rows if any(row)]
+        except HttpError as e:
+            print(f"Error reading applied jobs: {e}")
+            return []
+
+    def add_applied_job(self, job: AppliedJob) -> bool:
+        """Add a job to the Applied sheet."""
+        self._ensure_headers(APPLIED_SHEET)
+
+        if not job.date_applied:
+            job.date_applied = datetime.now().strftime("%Y-%m-%d")
+
+        try:
+            self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{APPLIED_SHEET}!A:F",
+                valueInputOption='RAW',
+                insertDataOption='INSERT_ROWS',
+                body={'values': [job.to_row()]}
+            ).execute()
+            return True
+        except HttpError as e:
+            print(f"Error adding applied job: {e}")
+            return False
+
+    def mark_as_applied_with_description(self, link: str, job_description: str = "") -> bool:
+        """Mark a job as applied and save it to the Applied sheet with description."""
+        # First find the job in Manual or AI Searched sheets
+        job_data = None
+        source_sheet = None
+
+        for sheet_name in [MANUAL_SHEET, AI_SEARCHED_SHEET]:
+            jobs = self.get_all_jobs(sheet_name)
+            for job in jobs:
+                if job.link == link:
+                    job_data = job
+                    source_sheet = sheet_name
+                    break
+            if job_data:
+                break
+
+        if not job_data:
+            return False
+
+        # Create AppliedJob and add to Applied sheet
+        applied_job = AppliedJob(
+            company=job_data.company,
+            role=job_data.role,
+            link=job_data.link,
+            date_applied=datetime.now().strftime("%Y-%m-%d"),
+            platform=job_data.platform,
+            job_description=job_description,
+        )
+
+        if not self.add_applied_job(applied_job):
+            return False
+
+        # Update status in source sheet
+        return self._mark_applied_in_sheet(link, source_sheet)
+
 
 def get_sheets_sync() -> Optional[SheetsSync]:
     """Get a SheetsSync instance using spreadsheet ID from .env."""
     from dotenv import load_dotenv
-    load_dotenv()
+    env_path = PROJECT_ROOT / ".env"
+    load_dotenv(env_path)
 
     spreadsheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
     if not spreadsheet_id:
@@ -298,12 +433,13 @@ def get_sheets_sync() -> Optional[SheetsSync]:
         return None
 
     try:
-        return SheetsSync(spreadsheet_id)
+        sync = SheetsSync(spreadsheet_id)
+        return sync
     except FileNotFoundError as e:
-        print(str(e))
+        print(f"Credentials not found: {e}")
         return None
     except Exception as e:
-        print(f"Error connecting to Google Sheets: {e}")
+        print(f"Sheets connection error: {type(e).__name__}: {e}")
         return None
 
 

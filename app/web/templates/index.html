@@ -369,6 +369,102 @@
         .spinning {
             animation: spin 1s linear infinite;
         }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .tab-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            color: #888;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .applied-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border-left: 4px solid #38ef7d;
+        }
+
+        .applied-card .job-company {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .applied-card .job-role {
+            color: #aaa;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .applied-card .job-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .applied-card .job-description {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #aaa;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .applied-card .job-description.collapsed {
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .toggle-desc {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        .toggle-desc:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -383,6 +479,10 @@
                     <div class="stat-label">Pending</div>
                 </div>
                 <div class="stat">
+                    <div class="stat-number" id="applied-count">-</div>
+                    <div class="stat-label">Applied</div>
+                </div>
+                <div class="stat">
                     <div class="stat-number" id="manual-count">-</div>
                     <div class="stat-label">Manual</div>
                 </div>
@@ -393,59 +493,83 @@
             </div>
         </header>
 
-        <div class="actions">
-            <button class="btn btn-primary" id="next-btn" onclick="openNext()">
-                ▶ Open Next Application
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('pending')" id="tab-pending">
+                📋 Pending
             </button>
-            <button class="btn btn-secondary" onclick="openAddModal()">
-                + Add Job Manually
-            </button>
-            <button class="btn btn-discover" id="discover-btn" onclick="discoverJobs()">
-                🔍 Find Jobs
+            <button class="tab-btn" onclick="switchTab('applied')" id="tab-applied">
+                ✅ Applied
             </button>
         </div>
 
         <div id="error-container"></div>
 
-        <div class="job-list" id="job-list">
-            <div class="loading">Loading applications...</div>
+        <!-- Pending Tab Content -->
+        <div class="tab-content active" id="content-pending">
+            <div class="actions">
+                <button class="btn btn-primary" id="next-btn" onclick="openNext()">
+                    ▶ Open Next Application
+                </button>
+                <button class="btn btn-secondary" onclick="openAddModal()">
+                    + Add Job Manually
+                </button>
+                <button class="btn btn-discover" id="discover-btn" onclick="discoverJobs()">
+                    🔍 Find Jobs
+                </button>
+            </div>
+
+            <div class="job-list" id="job-list">
+                <div class="loading">Loading applications...</div>
+            </div>
+        </div>
+
+        <!-- Applied Tab Content -->
+        <div class="tab-content" id="content-applied">
+            <div class="job-list" id="applied-list">
+                <div class="loading">Loading applied jobs...</div>
+            </div>
         </div>
     </div>
 
-    <button class="refresh-btn" onclick="loadJobs()" title="Refresh list">↻</button>
+    <button class="refresh-btn" onclick="refreshCurrentTab()" title="Refresh list">↻</button>
 
     <!-- Add Job Modal -->
     <div class="modal" id="add-modal">
         <div class="modal-content">
-            <h2>Add Job Manually</h2>
+            <h2>Add Job</h2>
             <form id="add-form" onsubmit="addJob(event)">
                 <div class="form-group">
-                    <label>Company Name *</label>
-                    <input type="text" id="add-company" required placeholder="e.g., Google">
-                </div>
-                <div class="form-group">
-                    <label>Role Title</label>
-                    <input type="text" id="add-role" placeholder="e.g., Software Engineering Intern">
-                </div>
-                <div class="form-group">
                     <label>Application Link *</label>
-                    <input type="url" id="add-link" required placeholder="https://...">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="url" id="add-link" required placeholder="Paste Greenhouse or Lever job URL..." style="flex: 1;">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="fetchJobDetails()" id="fetch-btn">
+                            Fetch
+                        </button>
+                    </div>
+                    <small style="color: #666; margin-top: 5px; display: block;">Supports Greenhouse and Lever URLs. Details will be auto-filled.</small>
                 </div>
-                <div class="form-group">
-                    <label>Platform</label>
-                    <select id="add-platform">
-                        <option value="other">Other</option>
-                        <option value="greenhouse">Greenhouse</option>
-                        <option value="lever">Lever</option>
-                        <option value="workday">Workday</option>
-                    </select>
+                <div id="fetched-details" style="display: none;">
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="add-company" placeholder="Auto-detected...">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <input type="text" id="add-role" placeholder="Auto-detected...">
+                    </div>
+                    <div class="form-group">
+                        <label>Platform</label>
+                        <select id="add-platform">
+                            <option value="other">Other</option>
+                            <option value="greenhouse">Greenhouse</option>
+                            <option value="lever">Lever</option>
+                            <option value="workday">Workday</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Date Posted</label>
-                    <input type="date" id="add-date">
-                </div>
+                <div id="fetch-status" style="margin: 10px 0; display: none;"></div>
                 <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary">Add Job</button>
+                    <button type="submit" class="btn btn-primary" id="add-submit-btn">Add Job</button>
                     <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
                 </div>
             </form>
@@ -465,17 +589,57 @@
         </div>
     </div>
 
+    <!-- Mark Applied Modal (simplified - auto-fetches description) -->
+    <div class="modal" id="apply-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>✅ Mark as Applied</h2>
+            <p style="color: #ccc; margin-bottom: 15px;" id="apply-job-title"></p>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">
+                The job description will be automatically saved to your Applied list.
+            </p>
+            <div id="apply-status" style="display: none; margin-bottom: 15px;"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="submitApplied()" id="apply-submit-btn">Mark as Applied</button>
+                <button type="button" class="btn btn-secondary" onclick="closeApplyModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let jobs = [];
+        let appliedJobs = [];
         let currentIndex = 0;
+        let currentTab = 'pending';
 
         // Load jobs on page load
-        document.addEventListener('DOMContentLoaded', loadJobs);
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeApp();
+        });
 
-        async function loadJobs() {
+        async function initializeApp() {
             const refreshBtn = document.querySelector('.refresh-btn');
             refreshBtn.classList.add('spinning');
 
+            try {
+                // Load both in parallel but wait for both to complete
+                await Promise.all([
+                    loadJobsData(),
+                    loadAppliedJobsData()
+                ]);
+
+                // Render everything after both are loaded
+                renderJobs();
+                renderAppliedJobs();
+                updateStats();
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        // Data-only loaders (no rendering, for use in initializeApp)
+        async function loadJobsData() {
             try {
                 const response = await fetch('/api/jobs');
                 const data = await response.json();
@@ -487,13 +651,119 @@
                     jobs = data.jobs;
                     hideError();
                 }
-
-                renderJobs();
-                updateStats();
             } catch (error) {
                 showError('Failed to load jobs: ' + error.message);
+                jobs = [];
+            }
+        }
+
+        async function loadAppliedJobsData() {
+            try {
+                const response = await fetch('/api/jobs/applied');
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error(data.error);
+                    appliedJobs = [];
+                } else {
+                    appliedJobs = data.jobs;
+                }
+            } catch (error) {
+                console.error('Failed to load applied jobs:', error);
+                appliedJobs = [];
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`content-${tab}`).classList.add('active');
+        }
+
+        function refreshCurrentTab() {
+            if (currentTab === 'pending') {
+                loadJobs();
+            } else {
+                loadAppliedJobs();
+            }
+        }
+
+        // Full loaders (with rendering, for use after user actions)
+        async function loadJobs() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            try {
+                await loadJobsData();
+                renderJobs();
+                updateStats();
             } finally {
                 refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        async function loadAppliedJobs() {
+            await loadAppliedJobsData();
+            renderAppliedJobs();
+            updateStats();
+        }
+
+        function renderAppliedJobs() {
+            const container = document.getElementById('applied-list');
+
+            if (appliedJobs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No applied jobs yet</h3>
+                        <p>Jobs you mark as applied will appear here with their descriptions saved.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="section-label">✅ Applied Jobs</div>';
+            appliedJobs.forEach((job, index) => {
+                const platformClass = `platform-${job.platform || 'other'}`;
+                const hasDescription = job.job_description && job.job_description.trim();
+
+                html += `
+                    <div class="applied-card">
+                        <div class="job-company">${escapeHtml(job.company)}</div>
+                        <div class="job-role">${escapeHtml(job.role || 'Position')}</div>
+                        <div class="job-meta">
+                            <span class="platform-badge ${platformClass}">${job.platform || 'other'}</span>
+                            <span>📅 Applied: ${job.date_applied || 'Unknown'}</span>
+                            <a href="${job.link}" target="_blank" style="color: #667eea;">View Posting</a>
+                        </div>
+                        ${hasDescription ? `
+                            <div class="job-description collapsed" id="desc-${index}">
+                                ${escapeHtml(job.job_description)}
+                            </div>
+                            <button class="toggle-desc" onclick="toggleDescription(${index})">Show more</button>
+                        ` : '<div style="color: #666; font-size: 0.85rem; margin-top: 10px;">No description saved</div>'}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleDescription(index) {
+            const desc = document.getElementById(`desc-${index}`);
+            const btn = desc.nextElementSibling;
+
+            if (desc.classList.contains('collapsed')) {
+                desc.classList.remove('collapsed');
+                btn.textContent = 'Show less';
+            } else {
+                desc.classList.add('collapsed');
+                btn.textContent = 'Show more';
             }
         }
 
@@ -562,6 +832,7 @@
 
         function updateStats() {
             document.getElementById('pending-count').textContent = jobs.length;
+            document.getElementById('applied-count').textContent = appliedJobs.length;
             document.getElementById('manual-count').textContent = jobs.filter(j => j.is_manual).length;
             document.getElementById('ai-count').textContent = jobs.filter(j => !j.is_manual).length;
 
@@ -714,52 +985,171 @@
             currentUnfilledFields = [];
         }
 
+        let currentApplyingJob = null;
+
         async function markApplied(index) {
             const job = jobs[index];
             if (!job) return;
 
-            if (!confirm(`Mark "${job.company} - ${job.role}" as applied?`)) {
-                return;
-            }
+            // Show confirmation modal (description will be auto-fetched)
+            currentApplyingJob = job;
+            document.getElementById('apply-job-title').textContent = `${job.company} - ${job.role}`;
+            document.getElementById('apply-status').style.display = 'none';
+            document.getElementById('apply-submit-btn').disabled = false;
+            document.getElementById('apply-modal').classList.add('active');
+        }
+
+        async function submitApplied() {
+            if (!currentApplyingJob) return;
+
+            const submitBtn = document.getElementById('apply-submit-btn');
+            const statusDiv = document.getElementById('apply-status');
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+            statusDiv.innerHTML = '<div class="info-message">Fetching job description...</div>';
+            statusDiv.style.display = 'block';
 
             try {
+                // Backend will auto-fetch the job description
                 const response = await fetch('/api/jobs/applied', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({link: job.link})
+                    body: JSON.stringify({
+                        link: currentApplyingJob.link
+                    })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    // Remove from list and reload
+                    closeApplyModal();
+                    showSuccess('Marked as applied! Job description saved.');
+                    // Reload both lists
                     await loadJobs();
+                    await loadAppliedJobs();
                 } else {
-                    showError('Failed to mark as applied: ' + (data.error || 'Unknown error'));
+                    statusDiv.innerHTML = `<div class="error-message">${escapeHtml(data.error || 'Unknown error')}</div>`;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Mark as Applied';
                 }
             } catch (error) {
-                showError('Failed to mark as applied: ' + error.message);
+                statusDiv.innerHTML = `<div class="error-message">Failed: ${escapeHtml(error.message)}</div>`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Mark as Applied';
             }
+        }
+
+        function closeApplyModal() {
+            document.getElementById('apply-modal').classList.remove('active');
+            currentApplyingJob = null;
         }
 
         function openAddModal() {
             document.getElementById('add-modal').classList.add('active');
+            // Reset form state
+            document.getElementById('add-form').reset();
+            document.getElementById('fetched-details').style.display = 'none';
+            document.getElementById('fetch-status').style.display = 'none';
+            document.getElementById('fetch-btn').disabled = false;
+            document.getElementById('fetch-btn').textContent = 'Fetch';
         }
 
         function closeAddModal() {
             document.getElementById('add-modal').classList.remove('active');
             document.getElementById('add-form').reset();
+            document.getElementById('fetched-details').style.display = 'none';
+            document.getElementById('fetch-status').style.display = 'none';
+        }
+
+        async function fetchJobDetails() {
+            const link = document.getElementById('add-link').value.trim();
+            if (!link) {
+                showFetchStatus('Please enter a URL first', 'error');
+                return;
+            }
+
+            const fetchBtn = document.getElementById('fetch-btn');
+            const statusDiv = document.getElementById('fetch-status');
+
+            // Show loading state
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = 'Fetching...';
+            showFetchStatus('Fetching job details...', 'info');
+
+            try {
+                const response = await fetch('/api/jobs/fetch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ url: link })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Populate the form fields
+                    document.getElementById('add-company').value = data.company || '';
+                    document.getElementById('add-role').value = data.role || '';
+                    document.getElementById('add-platform').value = data.platform || 'other';
+
+                    // Show the details section
+                    document.getElementById('fetched-details').style.display = 'block';
+                    showFetchStatus('Details fetched! Review and edit if needed.', 'success');
+                } else {
+                    // Show error but still show manual entry fields
+                    document.getElementById('fetched-details').style.display = 'block';
+                    showFetchStatus(data.error || 'Could not fetch details. Please enter manually.', 'error');
+                }
+            } catch (error) {
+                document.getElementById('fetched-details').style.display = 'block';
+                showFetchStatus('Fetch failed: ' + error.message + '. Please enter manually.', 'error');
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = 'Fetch';
+            }
+        }
+
+        function showFetchStatus(message, type) {
+            const statusDiv = document.getElementById('fetch-status');
+            const bgColors = {
+                'info': 'rgba(59, 130, 246, 0.2)',
+                'success': 'rgba(34, 197, 94, 0.2)',
+                'error': 'rgba(220, 38, 38, 0.2)'
+            };
+            const textColors = {
+                'info': '#93c5fd',
+                'success': '#86efac',
+                'error': '#fca5a5'
+            };
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = bgColors[type];
+            statusDiv.style.color = textColors[type];
+            statusDiv.style.padding = '10px';
+            statusDiv.style.borderRadius = '6px';
+            statusDiv.textContent = message;
         }
 
         async function addJob(event) {
             event.preventDefault();
 
+            const link = document.getElementById('add-link').value.trim();
+            if (!link) {
+                showError('Please enter a job URL');
+                return;
+            }
+
+            // Get values from form (may be auto-filled or manually entered)
             const job = {
-                company: document.getElementById('add-company').value,
-                role: document.getElementById('add-role').value,
-                link: document.getElementById('add-link').value,
+                company: document.getElementById('add-company').value.trim(),
+                role: document.getElementById('add-role').value.trim(),
+                link: link,
                 platform: document.getElementById('add-platform').value,
-                date_posted: document.getElementById('add-date').value,
             };
+
+            // Show loading
+            const submitBtn = document.getElementById('add-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding...';
 
             try {
                 const response = await fetch('/api/jobs/add', {
@@ -771,12 +1161,16 @@
                 const data = await response.json();
                 if (data.success) {
                     closeAddModal();
+                    showSuccess('Job added!');
                     await loadJobs();
                 } else {
                     showError('Failed to add job: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 showError('Failed to add job: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Job';
             }
         }
 

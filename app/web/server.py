@@ -9,25 +9,40 @@ import sys
 import webbrowser
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, redirect, url_for
+from dotenv import load_dotenv
+
+# Load environment variables from project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.sync.sheets import get_sheets_sync, JobApplication, MANUAL_SHEET, AI_SEARCHED_SHEET
+from app.sync.sheets import get_sheets_sync, JobApplication, AppliedJob, MANUAL_SHEET, AI_SEARCHED_SHEET, APPLIED_SHEET
 
 app = Flask(__name__,
             template_folder=str(Path(__file__).parent / "templates"),
             static_folder=str(Path(__file__).parent / "static"))
 
-# Global sheets sync instance
+# Global sheets sync instance - initialized lazily on first request
 sheets_sync = None
 
 
 def get_sync():
-    """Get or create sheets sync instance."""
+    """Get or create sheets sync instance with retry logic."""
     global sheets_sync
     if sheets_sync is None:
-        sheets_sync = get_sheets_sync()
+        # Try up to 3 times with delay between attempts
+        import time
+        for attempt in range(3):
+            try:
+                sheets_sync = get_sheets_sync()
+                if sheets_sync:
+                    break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)  # Brief delay before retry
+                # On last attempt, just return None (don't crash)
     return sheets_sync
 
 
@@ -67,48 +82,155 @@ def get_jobs():
         return jsonify({'error': str(e), 'jobs': []})
 
 
+@app.route('/api/jobs/applied', methods=['GET'])
+def get_applied_jobs():
+    """Get all applied jobs."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'error': 'Google Sheets not configured', 'jobs': []})
+
+    try:
+        applied = sync.get_applied_jobs()
+        jobs = []
+        for job in applied:
+            jobs.append({
+                'company': job.company,
+                'role': job.role,
+                'link': job.link,
+                'date_applied': job.date_applied,
+                'platform': job.platform,
+                'job_description': job.job_description,
+            })
+        return jsonify({'jobs': jobs, 'error': None})
+    except Exception as e:
+        return jsonify({'error': str(e), 'jobs': []})
+
+
 @app.route('/api/jobs/applied', methods=['POST'])
 def mark_applied():
-    """Mark a job as applied."""
+    """Mark a job as applied and save to Applied sheet. Auto-fetches job description."""
     sync = get_sync()
     if not sync:
         return jsonify({'success': False, 'error': 'Google Sheets not configured'})
 
     data = request.json
     link = data.get('link')
+    job_description = data.get('job_description', '')
 
     if not link:
         return jsonify({'success': False, 'error': 'No link provided'})
 
+    # Auto-fetch job description if not provided
+    if not job_description:
+        try:
+            import sys
+            poc_path = str(Path(__file__).parent.parent.parent / "poc")
+            if poc_path not in sys.path:
+                sys.path.insert(0, poc_path)
+
+            from poc_discovery import fetch_job_details
+            result = fetch_job_details(link)
+
+            if result.get('success'):
+                job_description = result.get('description', '')
+        except Exception as e:
+            print(f"Auto-fetch description failed: {e}")
+            # Continue without description
+
     try:
-        success = sync.mark_as_applied(link)
-        return jsonify({'success': success})
+        success = sync.mark_as_applied_with_description(link, job_description)
+        return jsonify({'success': success, 'description_fetched': bool(job_description)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/jobs/fetch', methods=['POST'])
+def fetch_job_from_url():
+    """Fetch job details (company, role, description, platform) from a URL."""
+    data = request.json
+    url = data.get('url', '')
+
+    if not url:
+        return jsonify({'success': False, 'error': 'No URL provided'})
+
+    try:
+        # Import the fetch function from poc_discovery
+        import sys
+        poc_path = str(Path(__file__).parent.parent.parent / "poc")
+        if poc_path not in sys.path:
+            sys.path.insert(0, poc_path)
+
+        from poc_discovery import fetch_job_details
+
+        result = fetch_job_details(url)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'platform': None,
+            'company': '',
+            'role': '',
+            'description': '',
+            'location': None,
+        })
+
+
 @app.route('/api/jobs/add', methods=['POST'])
 def add_job():
-    """Add a new job manually."""
+    """Add a new job manually. Can auto-fetch details from URL."""
     sync = get_sync()
     if not sync:
         return jsonify({'success': False, 'error': 'Google Sheets not configured'})
 
     data = request.json
+    link = data.get('link', '')
+
+    if not link:
+        return jsonify({'success': False, 'error': 'Link is required'})
+
+    # If company/role not provided, try to fetch from URL
+    company = data.get('company', '')
+    role = data.get('role', '')
+    platform = data.get('platform', 'other')
+
+    if not company or not role:
+        try:
+            import sys
+            poc_path = str(Path(__file__).parent.parent.parent / "poc")
+            if poc_path not in sys.path:
+                sys.path.insert(0, poc_path)
+
+            from poc_discovery import fetch_job_details
+            result = fetch_job_details(link)
+
+            if result.get('success'):
+                if not company:
+                    company = result.get('company', '')
+                if not role:
+                    role = result.get('role', '')
+                if platform == 'other' and result.get('platform'):
+                    platform = result.get('platform')
+        except Exception as e:
+            print(f"Auto-fetch failed: {e}")
+            # Continue with provided/empty values
+
+    if not company:
+        return jsonify({'success': False, 'error': 'Company is required (could not auto-detect)'})
+
     job = JobApplication(
-        company=data.get('company', ''),
-        role=data.get('role', ''),
-        link=data.get('link', ''),
-        platform=data.get('platform', 'other'),
+        company=company,
+        role=role or 'Position',
+        link=link,
+        platform=platform,
         date_posted=data.get('date_posted', ''),
     )
 
-    if not job.company or not job.link:
-        return jsonify({'success': False, 'error': 'Company and link are required'})
-
     try:
         success = sync.add_job(job, MANUAL_SHEET)
-        return jsonify({'success': success})
+        return jsonify({'success': success, 'company': company, 'role': role})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -394,7 +516,19 @@ def discover_jobs():
             KNOWN_LEVER_COMPANIES,
         )
 
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+
+        # Create session with retry logic for transient SSL errors
         session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
         session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
@@ -405,10 +539,11 @@ def discover_jobs():
         all_jobs = []
         jobs_limit = 20  # Target 10-20 jobs
 
-        # Check ALL known Greenhouse companies to find enough internships
+        # Check a random sample of known Greenhouse companies
         import random
         companies_to_check = KNOWN_GREENHOUSE_COMPANIES.copy()
         random.shuffle(companies_to_check)
+        companies_to_check = companies_to_check[:20]  # Limit to 20 to avoid timeout
 
         for company in companies_to_check:
             if len(all_jobs) >= jobs_limit:
@@ -422,6 +557,9 @@ def discover_jobs():
                         break
                     title = job.get("title", "")
                     url = job.get("absolute_url", "")
+                    # Add #app anchor to go directly to application form
+                    if url and "#" not in url:
+                        url = url + "#app"
                     # Use our strict filter
                     if is_relevant_internship(title) and url:
                         all_jobs.append(JobApplication(
@@ -434,9 +572,10 @@ def discover_jobs():
             except Exception:
                 continue
 
-        # Check ALL known Lever companies
+        # Check a random sample of known Lever companies
         companies_to_check = KNOWN_LEVER_COMPANIES.copy()
         random.shuffle(companies_to_check)
+        companies_to_check = companies_to_check[:20]  # Limit to 20 to avoid timeout
 
         for company in companies_to_check:
             if len(all_jobs) >= jobs_limit:
@@ -449,7 +588,8 @@ def discover_jobs():
                     if len(all_jobs) >= jobs_limit:
                         break
                     title = job.get("text", "")
-                    url = job.get("hostedUrl", "")
+                    # Prefer applyUrl (direct application) over hostedUrl (listing page)
+                    url = job.get("applyUrl", "") or job.get("hostedUrl", "")
                     # Use our strict filter
                     if is_relevant_internship(title) and url:
                         all_jobs.append(JobApplication(
@@ -483,7 +623,7 @@ def run_server(port=5000, debug=False, open_browser=True):
     print(f"{'='*60}")
     print(f"\nStarting server at http://localhost:{port}")
 
-    if open_browser:
+    if open_browser and not os.environ.get('WERKZEUG_RUN_MAIN'):
         webbrowser.open(f"http://localhost:{port}")
 
     app.run(host='0.0.0.0', port=port, debug=debug)
