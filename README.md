@@ -1,214 +1,162 @@
 # Internship Application Assistant
 
-A web-based tool that helps you discover internships, track applications, and auto-fill job applications on Greenhouse and Lever platforms.
+A web-based tool that streamlines the internship application process. It discovers jobs from Greenhouse and Lever job boards, tracks applications via Google Sheets, and auto-fills application forms using Playwright — so you spend less time on repetitive data entry and more time on applications that matter.
 
 ## Features
 
-- **Job Discovery**: Automatically find internships from 100+ tech companies using Greenhouse and Lever APIs
-- **Smart Filtering**: Configure which roles you're interested in (SWE, Data, Quant, Design, Marketing, etc.)
-- **Application Tracking**: Sync your application list with Google Sheets
-- **Auto-Fill**: Automatically fill Greenhouse/Lever applications with your profile info
-- **Learning System**: Remembers your answers to questions for future applications
-- **Web UI**: Clean interface to manage your application queue
+- **Job Discovery** — Searches 100+ company job boards on Greenhouse and Lever, filtering for internship roles matching your configured keywords
+- **Manual Job Addition** — Paste any Greenhouse/Lever job URL and the app auto-fetches the company name, role, location, and description from the API
+- **Application Tracking** — Two-tab Google Sheets backend (Manual + AI Searched) with status tracking and one-click "Applied" marking
+- **Auto-Fill** — Opens Greenhouse/Lever applications in a Playwright browser with your profile fields pre-filled (name, email, phone, resume, etc.)
+- **Answer Bank** — Remembers your answers to application questions using fuzzy matching, so repeat questions are filled automatically
+- **AI Answer Generation** — When no saved answer exists, uses OpenAI to generate answers from your resume (if API key configured)
+- **Resume Parsing** — Upload a PDF resume on the profile page and AI extracts your details automatically
+- **Web UI** — Clean interface to manage your application queue, edit your profile, and review saved answers
 
-## Screenshots
+## Setup
 
-The UI shows your pending applications with Manual jobs prioritized over AI-discovered ones. Click "Open" to launch auto-fill, or "Find Jobs" to discover new internships.
-
-## Quick Start
-
-### 1. Clone the Repository
+### 1. Clone and Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/internship-assistant.git
+git clone https://github.com/jeashankulk/internship-assistant.git
 cd internship-assistant
-```
-
-### 2. Install Dependencies
-
-Requires Python 3.11+
-
-```bash
 pip install -e .
 pip install flask playwright
 playwright install chromium
 ```
 
-### 3. Set Up Google Sheets
+### 2. Set Up Google Sheets
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or use existing)
-3. Enable **Google Sheets API**: APIs & Services → Library → Search "Google Sheets API" → Enable
-4. Create credentials: APIs & Services → Credentials → Create Credentials → OAuth client ID → Desktop app
-5. Download the JSON file and save as `credentials.json` in the project root
-6. Add yourself as a test user: OAuth consent screen → Test users → Add your email
+2. Create a project and enable the **Google Sheets API**
+3. Create OAuth credentials (Desktop app) and download as `credentials.json` in the project root
+4. Add yourself as a test user under OAuth consent screen
 
-### 4. Create Your Google Sheet
+### 3. Create Your Spreadsheet
 
-1. Go to [Google Sheets](https://sheets.google.com) and create a new spreadsheet
-2. Name it "Internship Applications" (or anything you want)
-3. Create two sheet tabs at the bottom:
-   - `Manual` (for jobs you add manually - shown first in UI)
-   - `AI Searched` (for auto-discovered jobs)
-4. Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit`
+1. Create a new spreadsheet in [Google Sheets](https://sheets.google.com)
+2. Add two tabs at the bottom: `Manual` and `AI Searched`
+3. Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit`
 
-### 5. Configure Environment
+### 4. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your spreadsheet ID:
+Edit `.env` and set your spreadsheet ID:
 ```
 GOOGLE_SPREADSHEET_ID=your_spreadsheet_id_here
 ```
 
-### 6. Set Up Your Profile (New!)
- 
- **Option A: Resume-Driven Setup (Recommended)**
- 
- 1. Run the application: `python run_ui.py`
- 2. Open `http://localhost:5000`
- 3. Click **👤 Edit Profile** (or go to `/profile`)
- 4. Upload your PDF Resume
- 5. The AI will extract your details. Review and click Save.
- 
- **Option B: Manual CLI Setup (Deprecated)**
- 
- ```bash
- python poc/setup_profile.py
- ```
- 
- This interactive wizard will manually ask for your details if you prefer not to use the resume parser.
-
-### 7. Advanced: Manual Role Configuration (Optional)
-
-You can also manually edit `config/roles.json` to fine-tune your search:
-
-```json
-{
-  "include_keywords": ["design", "ux", "ui", "product design"],
-  "exclude_keywords": ["engineering", "software"],
-  "must_contain": ["intern"]
-}
+Optionally add an OpenAI API key for AI-powered answer generation and resume parsing:
+```
+OPENAI_API_KEY=your_key_here
 ```
 
-### 8. Run the App
+### 5. Run the App
 
 ```bash
 python run_ui.py
 ```
 
-Open http://localhost:8080 in your browser.
+The app opens at http://localhost:8080. On first run you'll be prompted to authorize Google Sheets access.
+
+### 6. Set Up Your Profile
+
+1. Click **Edit Profile** in the app (or go to `/profile`)
+2. Upload your PDF resume — AI extracts your details automatically
+3. Review the parsed fields and click Save
+
+That's it. Your profile is stored locally in `storage/profile.json` and used to auto-fill applications.
 
 ## Usage
 
 ### Finding Jobs
 
-Click **"Find Jobs"** to automatically discover internships from known tech companies. The tool searches Greenhouse and Lever job boards and filters for roles matching your configured keywords.
+Click **Find Jobs** to scan Greenhouse and Lever boards for internships matching your configured role keywords. Discovered jobs appear in the "AI Searched" tab.
 
 ### Adding Jobs Manually
 
-Click **"+ Add Job Manually"** to add a specific job you found elsewhere. Manual jobs appear first in your queue.
+Click **+ Add Job Manually**, paste a Greenhouse or Lever job URL, and click **Fetch**. The app pulls the job title, company name, description, and location directly from the platform's API. Manual jobs appear first in your queue.
 
-### Applying to Jobs
+### Applying
 
-1. Click **"Open"** on any job
-2. For Greenhouse/Lever: A browser opens with auto-filled fields
-3. If there are unfilled questions, a modal appears in the UI
-4. Fill in your answers (they're saved for future applications!)
-5. Review the form and submit manually
+1. Click **Open** on any job
+2. A Playwright browser opens with your profile fields pre-filled
+3. If there are unfilled questions, a modal appears in the UI for you to answer them (answers are saved for next time)
+4. Review the form and submit manually — the app never submits for you
 
-### Marking Jobs as Applied
+### Tracking
 
-Click **"✓ Applied"** after submitting. This:
-- Removes the job from your UI queue
-- Updates Google Sheets status to "Applied"
+Click **Applied** after submitting to move the job out of your queue and update the status in Google Sheets.
+
+### Managing Saved Answers
+
+Go to the **Answers** page (`/answers`) to view, edit, or delete saved answers from previous applications.
 
 ## Project Structure
 
 ```
 internship-assistant/
 ├── app/
-│   ├── web/           # Flask web UI
-│   └── sync/          # Google Sheets integration
+│   ├── ai/              # LLM client (resume parsing, answer generation)
+│   ├── web/             # Flask web UI (server, templates, static)
+│   └── sync/            # Google Sheets integration
 ├── poc/
-│   ├── poc_autofill.py    # Playwright auto-fill engine
-│   ├── poc_discovery.py   # Job board discovery
-│   ├── setup_profile.py   # Profile setup wizard
-│   └── answer_bank.py     # Learns your answers
+│   ├── poc_autofill.py  # Playwright auto-fill engine
+│   ├── poc_discovery.py # Job board discovery + API clients
+│   ├── answer_bank.py   # Question-answer storage with fuzzy matching
+│   └── setup_profile.py # Legacy CLI profile setup
 ├── config/
-│   └── roles.json     # Configure target roles
-├── storage/           # Local data (gitignored)
-│   ├── profile.json   # Your profile
-│   └── answers.json   # Saved answers
-├── .env.example       # Environment template
-├── run_ui.py          # Main entry point
-└── README.md
+│   └── roles.json       # Target role keywords configuration
+├── storage/             # Local data (gitignored)
+│   ├── profile.json     # Your profile
+│   └── answers.json     # Saved answers
+├── .env.example         # Environment variable template
+├── run_ui.py            # Entry point
+└── pyproject.toml
 ```
 
 ## Supported Platforms
 
 | Platform | Auto-Fill | Discovery |
 |----------|-----------|-----------|
-| Greenhouse | ✅ Full | ✅ Yes |
-| Lever | ✅ Full | ✅ Yes |
-| Workday | ❌ Browser only | ❌ No |
+| Greenhouse | Full | Yes |
+| Lever | Full | Yes |
+| Workday | Browser only | No |
 
-Workday applications open in your browser for manual completion (their forms are too complex for automation).
+Workday applications open in your default browser for manual completion.
 
-## Customization
+## Configuration
 
-### Adding More Companies
+### Role Keywords
 
-Edit `poc/poc_discovery.py` and add companies to:
+Edit `config/roles.json` to control which roles are matched during discovery:
+
+```json
+{
+  "include_keywords": ["software", "engineer", "developer", "swe"],
+  "exclude_keywords": ["senior", "staff", "manager"],
+  "must_contain": ["intern"]
+}
+```
+
+### Adding Companies
+
+Edit the company lists in `poc/poc_discovery.py`:
 - `KNOWN_GREENHOUSE_COMPANIES`
 - `KNOWN_LEVER_COMPANIES`
 
-### Changing Target Roles
-
-Edit `config/roles.json`:
-
-**For Design roles:**
-```json
-{
-  "include_keywords": ["design", "ux", "ui", "product design", "visual"],
-  "exclude_keywords": ["engineering", "software", "backend"],
-  "must_contain": ["intern"]
-}
-```
-
-**For Finance roles:**
-```json
-{
-  "include_keywords": ["finance", "accounting", "investment", "banking"],
-  "exclude_keywords": ["software", "engineering"],
-  "must_contain": ["intern"]
-}
-```
-
 ## Troubleshooting
 
-### "Google Sheets not configured"
-- Make sure `GOOGLE_SPREADSHEET_ID` is set in `.env`
-- Make sure `credentials.json` exists in project root
-
-### "Port already in use"
-- Edit `run_ui.py` and change the port number
-- Or kill the process: `lsof -i :8080` then `kill -9 <PID>`
-
-### Auto-fill not working
-- Make sure Playwright is installed: `playwright install chromium`
-- Check that your profile exists: `storage/profile.json`
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR.
-
-## License
-
-MIT License - see LICENSE file for details.
+| Problem | Fix |
+|---------|-----|
+| "Google Sheets not configured" | Set `GOOGLE_SPREADSHEET_ID` in `.env` and place `credentials.json` in project root |
+| Port already in use | Change port in `run_ui.py` or kill the process on :8080 |
+| Auto-fill not working | Run `playwright install chromium` and verify `storage/profile.json` exists |
+| AI features not working | Set `OPENAI_API_KEY` in `.env` |
 
 ## Disclaimer
 
-This tool is for personal use to help manage your job applications. Always review auto-filled forms before submitting. The tool never submits applications automatically - you always have final control.
+This tool assists with managing your job applications. It never submits applications automatically — you always review and submit manually. Only public job board APIs are accessed.
