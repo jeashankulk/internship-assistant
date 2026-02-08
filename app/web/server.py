@@ -5,7 +5,9 @@ Simple Flask server that displays pending applications and handles apply workflo
 """
 
 import os
+import json
 import sys
+import time
 import webbrowser
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, redirect, url_for
@@ -144,6 +146,119 @@ def mark_applied():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/jobs/not-interested', methods=['POST'])
+def mark_not_interested():
+    """Mark a job as not interested."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'success': False, 'error': 'Google Sheets not configured'})
+
+    data = request.json
+    link = data.get('link', '')
+
+    if not link:
+        return jsonify({'success': False, 'error': 'Link is required'})
+
+    try:
+        success = sync.mark_as_not_interested(link)
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/jobs/not-interested', methods=['GET'])
+def get_not_interested_jobs():
+    """Get all jobs marked as not interested."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'error': 'Google Sheets not configured', 'jobs': []})
+
+    try:
+        not_interested = sync.get_not_interested_jobs()
+        return jsonify({
+            'jobs': [{
+                'company': job.company,
+                'role': job.role,
+                'link': job.link,
+                'date_dismissed': job.date_dismissed,
+                'platform': job.platform,
+            } for job in not_interested]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'jobs': []})
+
+
+@app.route('/api/jobs/restore', methods=['POST'])
+def restore_job():
+    """Restore a job from Not Interested back to pending."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'success': False, 'error': 'Google Sheets not configured'})
+
+    data = request.json
+    link = data.get('link', '')
+
+    if not link:
+        return jsonify({'success': False, 'error': 'Link is required'})
+
+    try:
+        success = sync.restore_from_not_interested(link)
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/jobs/unapply', methods=['POST'])
+def unapply_job():
+    """Move a job from Applied back to pending (Manual sheet)."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'success': False, 'error': 'Google Sheets not configured'})
+
+    data = request.json
+    link = data.get('link', '')
+
+    if not link:
+        return jsonify({'success': False, 'error': 'Link is required'})
+
+    try:
+        success = sync.unapply_job(link)
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/jobs/clear', methods=['POST'])
+def clear_jobs():
+    """Clear all jobs from a specific sheet."""
+    sync = get_sync()
+    if not sync:
+        return jsonify({'success': False, 'error': 'Google Sheets not configured'})
+
+    data = request.json
+    sheet_type = data.get('type', '')  # 'pending' or 'not-interested'
+
+    # Map type to sheet names
+    from app.sync.sheets import MANUAL_SHEET, AI_SEARCHED_SHEET, NOT_INTERESTED_SHEET
+
+    if sheet_type == 'pending':
+        # Clear both Manual and AI Searched
+        success1 = sync.clear_sheet(MANUAL_SHEET)
+        success2 = sync.clear_sheet(AI_SEARCHED_SHEET)
+        return jsonify({'success': success1 or success2})
+    elif sheet_type == 'ai-searched':
+        success = sync.clear_sheet(AI_SEARCHED_SHEET)
+        return jsonify({'success': success})
+    elif sheet_type == 'manual':
+        success = sync.clear_sheet(MANUAL_SHEET)
+        return jsonify({'success': success})
+    elif sheet_type == 'not-interested':
+        success = sync.clear_sheet(NOT_INTERESTED_SHEET)
+        return jsonify({'success': success})
+    else:
+        return jsonify({'success': False, 'error': 'Invalid sheet type'})
+
+
 @app.route('/api/jobs/fetch', methods=['POST'])
 def fetch_job_from_url():
     """Fetch job details (company, role, description, platform) from a URL."""
@@ -154,6 +269,24 @@ def fetch_job_from_url():
         return jsonify({'success': False, 'error': 'No URL provided'})
 
     try:
+        # Optimization: parsing logic only supports Greenhouse and Lever
+        # Check basic patterns before importing heavy discovery module
+        is_supported = False
+        url_lower = url.lower()
+        if "greenhouse.io" in url_lower or "lever.co" in url_lower or "gh_jid" in url_lower:
+             is_supported = True
+             
+        if not is_supported:
+             return jsonify({
+                'success': False,
+                'error': 'URL not supported for auto-fetch (Greenhouse/Lever only). Please enter details manually.',
+                'platform': None,
+                'company': '',
+                'role': '',
+                'description': '',
+                'location': None,
+            })
+
         # Import the fetch function from poc_discovery
         import sys
         poc_path = str(Path(__file__).parent.parent.parent / "poc")
@@ -198,21 +331,29 @@ def add_job():
 
     if not company or not role:
         try:
-            import sys
-            poc_path = str(Path(__file__).parent.parent.parent / "poc")
-            if poc_path not in sys.path:
-                sys.path.insert(0, poc_path)
-
-            from poc_discovery import fetch_job_details
-            result = fetch_job_details(link)
-
-            if result.get('success'):
-                if not company:
-                    company = result.get('company', '')
-                if not role:
-                    role = result.get('role', '')
-                if platform == 'other' and result.get('platform'):
-                    platform = result.get('platform')
+            # Optimization: check if URL supports auto-fetch
+            # If not, skip import/fetch to avoid potential issues/delays
+            is_supported = False
+            link_lower = link.lower()
+            if "greenhouse.io" in link_lower or "lever.co" in link_lower or "gh_jid" in link_lower:
+                is_supported = True
+            
+            if is_supported:
+                import sys
+                poc_path = str(Path(__file__).parent.parent.parent / "poc")
+                if poc_path not in sys.path:
+                    sys.path.insert(0, poc_path)
+    
+                from poc_discovery import fetch_job_details
+                result = fetch_job_details(link)
+    
+                if result.get('success'):
+                    if not company:
+                        company = result.get('company', '')
+                    if not role:
+                        role = result.get('role', '')
+                    if platform == 'other' and result.get('platform'):
+                        platform = result.get('platform')
         except Exception as e:
             print(f"Auto-fetch failed: {e}")
             # Continue with provided/empty values
@@ -274,11 +415,100 @@ current_autofill_session = {
 }
 
 
+def _close_existing_session():
+    """Helper to cleanly close any existing autofill session."""
+    global current_autofill_session
+    if current_autofill_session.get('engine'):
+        print("  [SESSION] Closing existing session...")
+        try:
+            current_autofill_session['engine'].__exit__(None, None, None)
+        except Exception as e:
+            print(f"  [SESSION] Error closing session: {e}")
+        current_autofill_session['engine'] = None
+        current_autofill_session['url'] = None
+        current_autofill_session['unfilled_fields'] = []
+
+
+@app.route('/api/open-browser', methods=['POST'])
+def open_browser_only():
+    """Open a job link in Playwright browser without auto-filling."""
+    global current_autofill_session
+
+    data = request.json
+    link = data.get('link')
+    platform = data.get('platform', '').lower()
+
+    if not link:
+        return jsonify({'success': False, 'error': 'No link provided'})
+
+    try:
+        link_lower = link.lower()
+
+        # For Workday, just open in regular browser
+        if 'workday' in platform or 'workday' in link_lower or 'myworkdayjobs' in link_lower:
+            webbrowser.open(link)
+            return jsonify({'success': True, 'method': 'browser', 'message': 'Opened in browser (Workday - manual only)'})
+
+        # Close any existing session properly
+        _close_existing_session()
+
+        # Import autofill components
+        import sys
+        poc_path = str(Path(__file__).parent.parent.parent / "poc")
+        if poc_path not in sys.path:
+            sys.path.insert(0, poc_path)
+
+        from poc_autofill import AutofillEngine, ApplicantProfile, PROFILE_PATH
+
+        # Load profile
+        profile = ApplicantProfile.load_from_file(PROFILE_PATH)
+
+        # Create engine with visible browser
+        engine = AutofillEngine(profile, headless=False, skip_pause=True, interactive=False)
+        engine.__enter__()
+
+        # Store for later use
+        current_autofill_session['engine'] = engine
+        current_autofill_session['url'] = link
+        current_autofill_session['unfilled_fields'] = []
+
+        # Navigate to the page
+        print(f"  [OPEN] Navigating to: {link[:60]}...")
+        engine.page.goto(link, wait_until="networkidle", timeout=30000)
+        time.sleep(2)
+        print(f"  [OPEN] Page loaded: {engine.page.url[:60]}...")
+
+        # Try to click Apply button if we're on a job description page
+        print("  [OPEN] Checking for Apply button...")
+        clicked = engine._click_apply_button_if_present()
+        if clicked:
+            print("  [OPEN] Clicked Apply button, waiting for form...")
+            time.sleep(2)
+            print(f"  [OPEN] Now on: {engine.page.url[:60]}...")
+        else:
+            print("  [OPEN] No Apply button clicked (already on form or not found)")
+
+        # Inject the floating status indicator
+        engine._inject_autofill_button()
+
+        return jsonify({'success': True, 'method': 'playwright'})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Clean up on error
+        _close_existing_session()
+        return jsonify({'success': False, 'error': str(e)})
+
+
 def run_autofill_and_get_questions(url: str):
     """Run autofill and return any unfilled fields for UI to display."""
     global current_autofill_session
 
     try:
+        # Close any existing session properly first
+        _close_existing_session()
+
         import sys
         poc_path = str(Path(__file__).parent.parent.parent / "poc")
         if poc_path not in sys.path:
@@ -307,17 +537,31 @@ def run_autofill_and_get_questions(url: str):
                 # Get dropdown options if applicable
                 options = []
                 if field.field_type.value == 'select':
+                    print(f"  [DEBUG] Getting options for UI (field: {field.label})")
                     try:
-                        element = engine.page.query_selector(field.selector)
+                        # Use engine's helper to handle iframes
+                        element = None
+                        if hasattr(engine, '_get_element'):
+                            element = engine._get_element(field)
+                        else:
+                            element = engine.page.query_selector(field.selector)
+                            
                         if element:
-                            option_els = element.query_selector_all("option")
-                            for opt in option_els:
-                                val = opt.get_attribute("value") or ""
-                                text = opt.inner_text().strip()
-                                if val or text:
-                                    options.append({'value': val, 'text': text})
-                    except:
-                        pass
+                            # Use the engine's method if available, else manual
+                            if hasattr(engine, '_get_dropdown_options'):
+                                options_tuples = engine._get_dropdown_options(element)
+                                options = [{'value': v, 'text': t} for v, t in options_tuples]
+                            else:
+                                # Fallback (should normally use engine's method)
+                                option_els = element.query_selector_all("option")
+                                for opt in option_els:
+                                    val = opt.get_attribute("value") or ""
+                                    text = opt.inner_text().strip()
+                                    if val or text:
+                                        options.append({'value': val, 'text': text})
+                        print(f"  [DEBUG] Found {len(options)} options for {field.label}")
+                    except Exception as e:
+                        print(f"  [DEBUG] Error getting options: {e}")
 
                 unfilled.append({
                     'label': field.label,
@@ -342,12 +586,7 @@ def run_autofill_and_get_questions(url: str):
         import traceback
         traceback.print_exc()
         # Clean up on error
-        if current_autofill_session.get('engine'):
-            try:
-                current_autofill_session['engine'].__exit__(None, None, None)
-            except:
-                pass
-            current_autofill_session['engine'] = None
+        _close_existing_session()
         return jsonify({'success': False, 'error': str(e)})
 
 
@@ -381,25 +620,168 @@ def submit_autofill_answers():
             field_type = field_info['type']
 
             if selector in answers and answers[selector]:
-                value = answers[selector]
-                try:
-                    element = engine.page.query_selector(selector)
-                    if element:
-                        if field_type == 'select':
-                            element.select_option(value)
-                        else:
-                            element.fill(value)
-                        filled_count += 1
+                answer_data = answers[selector]
+                # Handle both old format (string) and new format (dict with type)
+                if isinstance(answer_data, dict):
+                    value = answer_data.get('value')
+                    answer_type = answer_data.get('type', 'text')
+                else:
+                    value = answer_data
+                    answer_type = field_type
 
-                        # Save to answer bank for future use
-                        answer_bank.store_answer(label, value)
+                try:
+                    # Construct a temporary FormField object
+                    # We need the FieldType enum, so import it or use string matching
+                    from poc.poc_autofill import FieldType, FormField
+                    
+                    # Map string type to FieldType enum
+                    ft = FieldType.TEXT
+                    if field_type == 'select': ft = FieldType.SELECT
+                    elif field_type == 'email': ft = FieldType.EMAIL
+                    elif field_type == 'tel': ft = FieldType.PHONE
+                    elif field_type == 'url': ft = FieldType.URL
+                    elif field_type == 'textarea': ft = FieldType.TEXTAREA
+                    elif field_type == 'checkbox': ft = FieldType.CHECKBOX
+                    elif field_type == 'radio': ft = FieldType.RADIO
+                    elif field_type == 'file': ft = FieldType.FILE
+
+                    temp_field = FormField(
+                        field_type=ft,
+                        label=label,
+                        selector=selector,
+                        name="", # Name not strored here but not critical for filling
+                        iframe_url="" # Assuming main frame for now as selector should handle it? 
+                        # Wait, selector might need iframe context. 
+                        # Ideally we should use the engine's list of fields but that might be stale.
+                        # Let's try filling with the new robust _fill_field logic.
+                    )
+                    
+                    # _fill_field handles finding the element (including iframes if logic supports it)
+                    # and doing the specific interaction (click-type-enter for pseudo-dropdowns)
+                    if engine._fill_field(temp_field, str(value)):
+                        print(f"  [FILL] Successfully filled {label}: {value}")
+                        filled_count += 1
+                        answer_bank.store_answer(label, str(value))
+                    else:
+                        print(f"  [FILL] Failed to fill {label}")
+
                 except Exception as e:
-                    print(f"Error filling {selector}: {e}")
+                    print(f"Error filling {label}: {e}")
 
         return jsonify({
             'success': True,
             'filled_count': filled_count,
             'message': f'Filled {filled_count} additional fields. Review and submit manually.'
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/autofill/refill', methods=['POST'])
+def refill_autofill():
+    """Re-run autofill on the current page (for when user navigates to form)."""
+    global current_autofill_session
+
+    engine = current_autofill_session.get('engine')
+    if not engine:
+        return jsonify({'success': False, 'error': 'No active autofill session. Click "Open" on a job first.'})
+
+    # Check if the browser/page is still valid, try to recover if not
+    try:
+        # Quick check - try to access the page URL
+        _ = engine.page.url
+    except Exception as e:
+        # Page might be closed - try to find another open page in the context
+        try:
+            if engine.context and len(engine.context.pages) > 0:
+                # Switch to the first available page
+                engine.page = engine.context.pages[-1]  # Use the last/newest page
+                print(f"  [REFILL] Switched to available page: {engine.page.url[:60]}...")
+            else:
+                # No pages available - session is truly dead
+                current_autofill_session['engine'] = None
+                current_autofill_session['unfilled_fields'] = []
+                return jsonify({'success': False, 'error': 'Browser session expired. Click "Open" on a job to start a new session.'})
+        except:
+            current_autofill_session['engine'] = None
+            current_autofill_session['unfilled_fields'] = []
+            return jsonify({'success': False, 'error': 'Browser session expired. Click "Open" on a job to start a new session.'})
+
+    try:
+        # Re-inject the autofill button (in case page changed)
+        engine._inject_autofill_button()
+
+        # Re-detect fields on current page
+        fields = engine._detect_fields()
+
+        # Get patterns for the form type
+        form_type = engine.detect_form_type(engine.page.url)
+        patterns = engine._get_patterns_for_form(form_type)
+
+        # Fill detected fields
+        filled_count = 0
+        skipped_count = 0
+        unfilled = []
+
+        for form_field in fields:
+            value = engine._get_value_for_field(form_field, patterns)
+            if value:
+                success = engine._fill_field(form_field, value)
+                if success:
+                    form_field.filled = True
+                    filled_count += 1
+            else:
+                skipped_count += 1
+                if form_field.label != "Unknown":
+                    # Get options for select elements
+                    options = []
+                    if form_field.field_type.value == 'select':
+                        print(f"  [DEBUG] Getting options for SELECT field: {form_field.label}")
+                        try:
+                            element = engine.page.query_selector(form_field.selector)
+                            if element:
+                                option_elements = element.query_selector_all("option")
+                                print(f"  [DEBUG] Found {len(option_elements)} option elements")
+                                for opt in option_elements:
+                                    opt_value = opt.get_attribute("value") or ""
+                                    opt_text = opt.inner_text().strip()
+                                    # Include options with text (value can be empty for placeholder)
+                                    if opt_text:
+                                        options.append({'value': opt_value or opt_text, 'text': opt_text})
+                                print(f"  [DEBUG] Collected {len(options)} options: {options[:3]}...")
+                            else:
+                                print(f"  [DEBUG] Could not find element with selector: {form_field.selector}")
+                        except Exception as e:
+                            print(f"  [DEBUG] Error getting options for {form_field.selector}: {e}")
+
+                    unfilled.append({
+                        'label': form_field.label,
+                        'selector': form_field.selector,
+                        'type': form_field.field_type.value,
+                        'required': form_field.required,
+                        'options': options
+                    })
+
+        # Update button status
+        total = len(fields)
+        if total == 0:
+            engine._update_autofill_button_status("No form fields found", success=False)
+        elif filled_count == total:
+            engine._update_autofill_button_status(f"Filled all {filled_count} fields!", success=True)
+        else:
+            engine._update_autofill_button_status(f"Filled {filled_count}/{total} fields", success=True)
+
+        current_autofill_session['unfilled_fields'] = unfilled
+
+        return jsonify({
+            'success': True,
+            'filled_count': filled_count,
+            'total_fields': total,
+            'unfilled_fields': unfilled,
+            'message': f'Filled {filled_count}/{total} fields'
         })
 
     except Exception as e:
@@ -616,6 +998,167 @@ def discover_jobs():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/answers')
+def answers_page():
+    """Serve the Answer Bank UI."""
+    return render_template('answers.html')
+
+
+@app.route('/api/answers', methods=['GET'])
+def get_answers():
+    """Get all stored answers."""
+    try:
+        import sys
+        poc_path = str(Path(__file__).parent.parent.parent / "poc")
+        if poc_path not in sys.path:
+            sys.path.insert(0, poc_path)
+            
+        from poc_autofill import get_answer_bank
+        
+        bank = get_answer_bank()
+        return jsonify({'success': True, 'answers': bank.get_all_answers()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/answers/update', methods=['POST'])
+def update_answer():
+    """Update an answer."""
+    try:
+        data = request.json
+        type_ = data.get('type')
+        key = data.get('key')
+        answer = data.get('answer')
+        company = data.get('company')
+        
+        from poc_autofill import get_answer_bank
+        bank = get_answer_bank()
+        
+        bank.update_answer(type_, key, answer, company)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/answers/delete', methods=['POST'])
+def delete_answer():
+    """Delete an answer."""
+    try:
+        data = request.json
+        type_ = data.get('type')
+        key = data.get('key')
+        company = data.get('company')
+        
+        from poc_autofill import get_answer_bank
+        bank = get_answer_bank()
+        
+        bank.delete_answer(type_, key, company)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# =============================================================================
+# Resume / Profile Routes
+# =============================================================================
+
+
+@app.route('/profile')
+def profile_page():
+    """Serve the Profile Setup UI."""
+    # Try to load existing profile
+    profile_data = None
+    profile_path = PROJECT_ROOT / "storage" / "profile.json"
+    if profile_path.exists():
+        try:
+             with open(profile_path, 'r') as f:
+                 profile_data = json.load(f)
+        except Exception:
+             pass
+             
+    return render_template('profile.html', existing_profile=profile_data)
+
+
+@app.route('/api/profile/upload', methods=['POST'])
+def upload_resume():
+    """Handle resume upload and extract data."""
+    if 'resume' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'})
+    
+    file = request.files['resume']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'})
+    
+    try:
+        from pypdf import PdfReader
+        from app.ai.llm import LLMClient
+        
+        # Save temp file
+        temp_dir = PROJECT_ROOT / "storage" / "temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = temp_dir / file.filename
+        file.save(temp_path)
+        
+        # Extract text
+        reader = PdfReader(temp_path)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+            
+        # Call AI to parse
+        llm = LLMClient()
+        if not llm.is_available():
+             # Basic extraction if no LLM
+             return jsonify({
+                 'success': True,
+                 'profile': {
+                     'resume_path': str(temp_path),
+                     'full_name': 'Manual Entry (OpenAI Key Missing)',
+                     'email': '',
+                     'phone': '',
+                     'school': '',
+                     'degree': "Bachelor's",
+                     'major': '',
+                     'graduation_year': '2026'
+                 }
+             })
+
+        profile_data = llm.parse_resume(text)
+        if not profile_data:
+             print("[ERROR] LLM parse_resume returned None")
+             return jsonify({'success': False, 'error': 'Failed to parse resume with AI'})
+             
+        profile_data['resume_path'] = str(temp_path)
+        
+        return jsonify({'success': True, 'profile': profile_data})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/profile/save', methods=['POST'])
+def save_profile():
+    """Save the profile to storage."""
+    try:
+        data = request.json
+        storage_dir = PROJECT_ROOT / "storage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        profile_path = storage_dir / "profile.json"
+        
+        # Ensure default fields
+        if 'target_roles' not in data:
+             data['target_roles'] = ["Software Engineering"] # Default
+             
+        with open(profile_path, "w") as f:
+            json.dump(data, f, indent=2)
+            
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 def run_server(port=5000, debug=False, open_browser=True):
     """Run the Flask server."""
     print(f"\n{'='*60}")
@@ -626,7 +1169,9 @@ def run_server(port=5000, debug=False, open_browser=True):
     if open_browser and not os.environ.get('WERKZEUG_RUN_MAIN'):
         webbrowser.open(f"http://localhost:{port}")
 
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    # Use threaded=False for Playwright compatibility (strict thread affinity)
+    # Disable reloader to prevent browser sessions from being killed on file changes
+    app.run(host='0.0.0.0', port=port, debug=debug, threaded=False, use_reloader=False)
 
 
 if __name__ == '__main__':

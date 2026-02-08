@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Setup - Internship Application Assistant</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            margin-right: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 20px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Profile Setup</h1>
+            <p>Upload your resume to auto-generate your profile</p>
+        </header>
+
+        <div class="card" id="upload-section">
+            <div class="form-group">
+                <label>Upload Resume (PDF)</label>
+                <input type="file" id="resume-file" accept=".pdf" style="padding: 10px;">
+            </div>
+            <button class="btn" onclick="uploadResume()">✨ Auto-Generate Profile</button>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Analyzing resume with AI...</p>
+        </div>
+
+        <div class="card hidden" id="profile-form">
+            <h2>Review & Save Profile</h2>
+            <br>
+            <form id="profile-data">
+                <div class="form-group" style="display: flex; gap: 15px;">
+                    <div style="flex: 1;">
+                        <label>First Name</label>
+                        <input type="text" name="first_name" required>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Last Name</label>
+                        <input type="text" name="last_name" required>
+                    </div>
+                </div>
+                <!-- Hidden Full Name for backward compatibility if needed, or constructed -->
+                <input type="hidden" name="full_name">
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone">
+                </div>
+                <div class="form-group">
+                    <label>Location (City, State)</label>
+                    <input type="text" name="location">
+                </div>
+
+                <h3>Education</h3>
+                <div class="form-group">
+                    <label>University / School</label>
+                    <input type="text" name="school">
+                </div>
+                <div class="form-group">
+                    <label>Degree (e.g. Bachelor's, Master's)</label>
+                    <input type="text" name="degree">
+                </div>
+                <div class="form-group">
+                    <label>Major (e.g. Computer Science)</label>
+                    <input type="text" name="major">
+                </div>
+                <div class="form-group" style="display: flex; gap: 15px;">
+                    <div style="flex: 1;">
+                        <label>Graduation Month</label>
+                        <select name="graduation_month">
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="December">December</option>
+                            <option value="January">January</option>
+                            <option value="August">August</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Graduation Year</label>
+                        <input type="text" name="graduation_year" placeholder="2026">
+                    </div>
+                </div>
+
+                <h3>Links</h3>
+                <!-- Add other fields as necessary -->
+                <div class="form-group">
+                    <label>LinkedIn URL</label>
+                    <input type="text" name="linkedin">
+                </div>
+                <div class="form-group">
+                    <label>GitHub URL</label>
+                    <input type="text" name="github">
+                </div>
+                <div class="form-group">
+                    <label>Portfolio / Website</label>
+                    <input type="text" name="website">
+                </div>
+                <button type="button" class="btn" onclick="saveProfile()">💾 Save Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function uploadResume() {
+            console.log("Upload Resume button clicked");
+            const fileInput = document.getElementById('resume-file');
+            if (!fileInput.files[0]) {
+                alert('Please select a PDF file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('resume', fileInput.files[0]);
+
+            const uploadSection = document.getElementById('upload-section');
+            const loadingSection = document.getElementById('loading');
+
+            if (uploadSection) uploadSection.classList.add('hidden');
+            if (loadingSection) loadingSection.classList.remove('hidden');
+
+            try {
+                console.log("Sending POST request to /api/profile/upload");
+                const response = await fetch('/api/profile/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log("Response status:", response.status);
+                const data = await response.json();
+                console.log("Response data:", data);
+
+                if (data.success) {
+                    populateForm(data.profile);
+                    if (loadingSection) loadingSection.classList.add('hidden');
+                    document.getElementById('profile-form').classList.remove('hidden');
+                } else {
+                    alert('Error: ' + data.error);
+                    if (uploadSection) uploadSection.classList.remove('hidden');
+                    if (loadingSection) loadingSection.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error("Upload failed:", e);
+                alert('Upload failed: ' + e);
+                if (loadingSection) loadingSection.classList.add('hidden');
+                if (uploadSection) uploadSection.classList.remove('hidden');
+            }
+        }
+
+        function populateForm(profile) {
+            const form = document.getElementById('profile-data');
+            for (const key in profile) {
+                if (form.elements[key]) {
+                    form.elements[key].value = profile[key];
+                }
+            }
+        }
+
+        async function saveProfile() {
+            const form = document.getElementById('profile-data');
+            const data = {};
+            new FormData(form).forEach((value, key) => data[key] = value);
+
+            try {
+                const response = await fetch('/api/profile/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Profile saved successfully!');
+                    window.location.href = '/';
+                } else {
+                    alert('Error saving profile: ' + result.error);
+                }
+            } catch (e) {
+                alert('Save failed: ' + e);
+            }
+        }
+
+        // Initialize with existing profile if available
+        document.addEventListener('DOMContentLoaded', () => {
+            const existingProfile = {{ existing_profile | tojson | safe if existing_profile else 'null'
+        }};
+        if (existingProfile) {
+            console.log("Loading existing profile:", existingProfile);
+            populateForm(existingProfile);
+
+            // Switch view
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('profile-form').classList.remove('hidden');
+
+            // Add Re-upload button
+            const formHeader = document.querySelector('#profile-form h2');
+            if (formHeader && !document.getElementById('reupload-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'reupload-btn';
+                btn.textContent = "📄 Upload New Resume";
+                btn.type = "button";
+                btn.className = "btn btn-secondary";
+                btn.style.marginLeft = "20px";
+                btn.style.fontSize = "0.8rem";
+                btn.onclick = () => {
+                    document.getElementById('upload-section').classList.remove('hidden');
+                    document.getElementById('profile-form').classList.add('hidden');
+                };
+                formHeader.appendChild(btn);
+            }
+        }
+
+        // Sync Full Name
+        const firstInput = document.querySelector('input[name="first_name"]');
+        const lastInput = document.querySelector('input[name="last_name"]');
+        const fullInput = document.querySelector('input[name="full_name"]');
+
+        function updateFullName() {
+            if (firstInput && lastInput && fullInput) {
+                fullInput.value = `${firstInput.value} ${lastInput.value}`.trim();
+            }
+        }
+
+        if (firstInput) firstInput.addEventListener('input', updateFullName);
+        if (lastInput) lastInput.addEventListener('input', updateFullName);
+        });
+    </script>
+</body>
+
+</html>

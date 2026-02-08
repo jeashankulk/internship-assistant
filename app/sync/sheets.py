@@ -34,10 +34,12 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 MANUAL_SHEET = "Manual"
 AI_SEARCHED_SHEET = "AI Searched"
 APPLIED_SHEET = "Applied"
+NOT_INTERESTED_SHEET = "Not Interested"
 
 # Column headers
 HEADERS = ["Company", "Role", "Link", "Status", "Date Posted", "Date Added", "Platform"]
 APPLIED_HEADERS = ["Company", "Role", "Link", "Date Applied", "Platform", "Job Description"]
+NOT_INTERESTED_HEADERS = ["Company", "Role", "Link", "Date Dismissed", "Platform"]
 
 
 @dataclass
@@ -116,6 +118,39 @@ class AppliedJob:
         )
 
 
+@dataclass
+class NotInterestedJob:
+    """Represents a job the user is not interested in."""
+    company: str
+    role: str
+    link: str
+    date_dismissed: str = ""
+    platform: str = ""
+
+    def to_row(self) -> list:
+        """Convert to spreadsheet row."""
+        return [
+            self.company,
+            self.role,
+            self.link,
+            self.date_dismissed or datetime.now().strftime("%Y-%m-%d"),
+            self.platform,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "NotInterestedJob":
+        """Create from spreadsheet row."""
+        while len(row) < 5:
+            row.append("")
+        return cls(
+            company=row[0] if row[0] else "",
+            role=row[1] if row[1] else "",
+            link=row[2] if row[2] else "",
+            date_dismissed=row[3] if row[3] else "",
+            platform=row[4] if row[4] else "",
+        )
+
+
 class SheetsSync:
     """Handles Google Sheets synchronization."""
 
@@ -176,9 +211,16 @@ class SheetsSync:
 
     def _ensure_headers(self, sheet_name: str):
         """Ensure the sheet has headers."""
-        # Use different headers for Applied sheet
-        headers = APPLIED_HEADERS if sheet_name == APPLIED_SHEET else HEADERS
-        col_range = "A1:F1" if sheet_name == APPLIED_SHEET else "A1:G1"
+        # Use different headers for each sheet type
+        if sheet_name == APPLIED_SHEET:
+            headers = APPLIED_HEADERS
+            col_range = "A1:F1"
+        elif sheet_name == NOT_INTERESTED_SHEET:
+            headers = NOT_INTERESTED_HEADERS
+            col_range = "A1:E1"
+        else:
+            headers = HEADERS
+            col_range = "A1:G1"
 
         try:
             result = self.service.spreadsheets().values().get(
@@ -320,9 +362,8 @@ class SheetsSync:
         if not jobs:
             return
 
-        # Get existing links to avoid duplicates
-        existing_jobs = self.get_all_jobs(sheet_name)
-        existing_links = {job.link for job in existing_jobs}
+        # Get all tracked links to avoid duplicates (including Applied and Not Interested)
+        existing_links = self.get_all_tracked_links()
 
         # Filter out duplicates
         new_jobs = [job for job in jobs if job.link not in existing_links]
@@ -419,6 +460,247 @@ class SheetsSync:
 
         # Update status in source sheet
         return self._mark_applied_in_sheet(link, source_sheet)
+
+    def get_not_interested_jobs(self) -> list[NotInterestedJob]:
+        """Get all jobs from the Not Interested sheet."""
+        self._ensure_headers(NOT_INTERESTED_SHEET)
+
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{NOT_INTERESTED_SHEET}!A2:E1000"
+            ).execute()
+
+            rows = result.get('values', [])
+            return [NotInterestedJob.from_row(row) for row in rows if any(row)]
+        except HttpError as e:
+            print(f"Error reading not interested jobs: {e}")
+            return []
+
+    def get_all_tracked_links(self) -> set[str]:
+        """Get all job links from all sheets (Manual, AI Searched, Applied, Not Interested)."""
+        all_links = set()
+
+        # Get links from pending jobs (Manual and AI Searched)
+        for sheet_name in [MANUAL_SHEET, AI_SEARCHED_SHEET]:
+            try:
+                jobs = self.get_all_jobs(sheet_name)
+                for job in jobs:
+                    if job.link:
+                        all_links.add(job.link)
+            except Exception:
+                pass
+
+        # Get links from Applied sheet
+        try:
+            applied = self.get_applied_jobs()
+            for job in applied:
+                if job.link:
+                    all_links.add(job.link)
+        except Exception:
+            pass
+
+        # Get links from Not Interested sheet
+        try:
+            not_interested = self.get_not_interested_jobs()
+            for job in not_interested:
+                if job.link:
+                    all_links.add(job.link)
+        except Exception:
+            pass
+
+        return all_links
+
+    def mark_as_not_interested(self, link: str) -> bool:
+        """Move a job to the Not Interested sheet and remove from source."""
+        # First find the job in Manual or AI Searched sheets
+        job_data = None
+        source_sheet = None
+        row_index = None
+
+        for sheet_name in [MANUAL_SHEET, AI_SEARCHED_SHEET]:
+            try:
+                result = self.service.spreadsheets().values().get(
+                    spreadsheetId=self.spreadsheet_id,
+                    range=f"{sheet_name}!A2:G1000"
+                ).execute()
+                rows = result.get('values', [])
+                for i, row in enumerate(rows):
+                    if len(row) >= 3 and row[2] == link:
+                        job_data = JobApplication.from_row(row)
+                        source_sheet = sheet_name
+                        row_index = i + 2  # +2 for header and 0-indexing
+                        break
+            except HttpError:
+                continue
+            if job_data:
+                break
+
+        if not job_data:
+            return False
+
+        # Create NotInterestedJob and add to Not Interested sheet
+        not_interested_job = NotInterestedJob(
+            company=job_data.company,
+            role=job_data.role,
+            link=job_data.link,
+            date_dismissed=datetime.now().strftime("%Y-%m-%d"),
+            platform=job_data.platform,
+        )
+
+        self._ensure_headers(NOT_INTERESTED_SHEET)
+
+        try:
+            # Add to Not Interested sheet
+            self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{NOT_INTERESTED_SHEET}!A:E",
+                valueInputOption='RAW',
+                insertDataOption='INSERT_ROWS',
+                body={'values': [not_interested_job.to_row()]}
+            ).execute()
+
+            # Delete from source sheet
+            self._delete_row(source_sheet, row_index)
+            return True
+        except HttpError as e:
+            print(f"Error marking as not interested: {e}")
+            return False
+
+    def restore_from_not_interested(self, link: str) -> bool:
+        """Restore a job from Not Interested back to AI Searched."""
+        # Find the job in Not Interested sheet
+        job_data = None
+        row_index = None
+
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{NOT_INTERESTED_SHEET}!A2:E1000"
+            ).execute()
+            rows = result.get('values', [])
+            for i, row in enumerate(rows):
+                if len(row) >= 3 and row[2] == link:
+                    job_data = NotInterestedJob.from_row(row)
+                    row_index = i + 2  # +2 for header and 0-indexing
+                    break
+        except HttpError:
+            return False
+
+        if not job_data:
+            return False
+
+        # Create JobApplication and add to AI Searched sheet
+        restored_job = JobApplication(
+            company=job_data.company,
+            role=job_data.role,
+            link=job_data.link,
+            status="Not Yet Applied",
+            date_added=datetime.now().strftime("%Y-%m-%d"),
+            platform=job_data.platform,
+        )
+
+        try:
+            # Add to AI Searched sheet
+            self._ensure_headers(AI_SEARCHED_SHEET)
+            self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{AI_SEARCHED_SHEET}!A:G",
+                valueInputOption='RAW',
+                insertDataOption='INSERT_ROWS',
+                body={'values': [restored_job.to_row()]}
+            ).execute()
+
+            # Delete from Not Interested sheet
+            self._delete_row(NOT_INTERESTED_SHEET, row_index)
+            return True
+        except HttpError as e:
+            print(f"Error restoring job: {e}")
+            return False
+
+    def unapply_job(self, link: str) -> bool:
+        """Move a job from Applied back to Manual sheet (undo applied)."""
+        # Find the job in Applied sheet
+        job_data = None
+        row_index = None
+
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{APPLIED_SHEET}!A2:F1000"
+            ).execute()
+            rows = result.get('values', [])
+            for i, row in enumerate(rows):
+                if len(row) >= 3 and row[2] == link:
+                    job_data = AppliedJob.from_row(row)
+                    row_index = i + 2  # +2 for header and 0-indexing
+                    break
+        except HttpError:
+            return False
+
+        if not job_data:
+            return False
+
+        # Create JobApplication and add to Manual sheet
+        restored_job = JobApplication(
+            company=job_data.company,
+            role=job_data.role,
+            link=job_data.link,
+            status="Not Yet Applied",
+            date_added=datetime.now().strftime("%Y-%m-%d"),
+            platform=job_data.platform,
+        )
+
+        try:
+            # Add to Manual sheet
+            self._ensure_headers(MANUAL_SHEET)
+            self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{MANUAL_SHEET}!A:G",
+                valueInputOption='RAW',
+                insertDataOption='INSERT_ROWS',
+                body={'values': [restored_job.to_row()]}
+            ).execute()
+
+            # Delete from Applied sheet
+            self._delete_row(APPLIED_SHEET, row_index)
+            return True
+        except HttpError as e:
+            print(f"Error unapplying job: {e}")
+            return False
+
+    def clear_sheet(self, sheet_name: str) -> bool:
+        """Clear all data rows from a sheet (keeps headers)."""
+        # Only allow clearing certain sheets for safety
+        allowed_sheets = [MANUAL_SHEET, AI_SEARCHED_SHEET, NOT_INTERESTED_SHEET]
+        if sheet_name not in allowed_sheets:
+            print(f"Cannot clear sheet: {sheet_name}")
+            return False
+
+        try:
+            # Clear all rows except header (row 1)
+            self.service.spreadsheets().values().clear(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{sheet_name}!A2:G1000"
+            ).execute()
+            print(f"Cleared all jobs from {sheet_name}")
+            return True
+        except HttpError as e:
+            print(f"Error clearing sheet: {e}")
+            return False
+
+    def _delete_row(self, sheet_name: str, row_index: int) -> bool:
+        """Delete a row from a sheet by clearing its contents."""
+        try:
+            # Clear the row contents (effectively removing it)
+            self.service.spreadsheets().values().clear(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{sheet_name}!A{row_index}:G{row_index}"
+            ).execute()
+            return True
+        except HttpError as e:
+            print(f"Error deleting row: {e}")
+            return False
 
 
 def get_sheets_sync() -> Optional[SheetsSync]:

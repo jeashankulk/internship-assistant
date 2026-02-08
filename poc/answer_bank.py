@@ -199,6 +199,37 @@ class AnswerBank:
 
         self.save()
 
+    def update_answer(self, type: str, key: str, answer: str, company: str = None):
+        """Update an existing answer."""
+        if type == 'custom' and company:
+            company_key = company.lower()
+            if company_key in self.answers["custom"]:
+                self.answers["custom"][company_key][key] = answer
+        elif type == 'exact':
+            self.answers["exact"][key] = answer
+        elif type == 'pattern':
+            self.answers["patterns"][key] = answer
+            
+        self.save()
+
+    def delete_answer(self, type: str, key: str, company: str = None):
+        """Delete an existing answer."""
+        if type == 'custom' and company:
+            company_key = company.lower()
+            if company_key in self.answers["custom"] and key in self.answers["custom"][company_key]:
+                del self.answers["custom"][company_key][key]
+                # Clean up company if empty
+                if not self.answers["custom"][company_key]:
+                    del self.answers["custom"][company_key]
+        elif type == 'exact':
+            if key in self.answers["exact"]:
+                del self.answers["exact"][key]
+        elif type == 'pattern':
+            if key in self.answers["patterns"]:
+                del self.answers["patterns"][key]
+            
+        self.save()
+
     def get_all_answers(self) -> dict:
         """Get all stored answers for review."""
         return self.answers

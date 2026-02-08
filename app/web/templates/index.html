@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,7 +28,7 @@
         header {
             text-align: center;
             padding: 30px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             margin-bottom: 30px;
         }
 
@@ -95,13 +96,13 @@
         }
 
         .btn-secondary {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .btn-success {
@@ -123,6 +124,15 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+
+        .btn-danger {
+            background: rgba(220, 38, 38, 0.8);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: rgba(220, 38, 38, 1);
         }
 
         .btn-small {
@@ -150,8 +160,8 @@
         }
 
         .job-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 12px;
@@ -163,7 +173,7 @@
         }
 
         .job-card:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border-color: rgba(102, 126, 234, 0.5);
             transform: translateX(5px);
         }
@@ -219,10 +229,25 @@
             font-weight: 600;
         }
 
-        .platform-greenhouse { background: #3ab77d; color: white; }
-        .platform-lever { background: #5d5dff; color: white; }
-        .platform-workday { background: #ff6b35; color: white; }
-        .platform-other { background: #666; color: white; }
+        .platform-greenhouse {
+            background: #3ab77d;
+            color: white;
+        }
+
+        .platform-lever {
+            background: #5d5dff;
+            color: white;
+        }
+
+        .platform-workday {
+            background: #ff6b35;
+            color: white;
+        }
+
+        .platform-other {
+            background: #666;
+            color: white;
+        }
 
         .job-actions {
             display: flex;
@@ -248,7 +273,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -260,7 +285,7 @@
 
         .modal-content {
             background: #1a1a2e;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 30px;
             width: 90%;
@@ -282,12 +307,14 @@
             font-size: 0.9rem;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 6px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             color: white;
             font-size: 1rem;
             font-family: inherit;
@@ -298,7 +325,9 @@
             min-height: 80px;
         }
 
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -362,8 +391,13 @@
         }
 
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .spinning {
@@ -384,13 +418,13 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             color: #888;
             transition: all 0.2s;
         }
 
         .tab-btn:hover {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.15);
             color: #fff;
         }
 
@@ -408,8 +442,8 @@
         }
 
         .applied-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 12px;
@@ -437,7 +471,7 @@
         }
 
         .applied-card .job-description {
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 8px;
             padding: 15px;
             margin-top: 10px;
@@ -465,13 +499,54 @@
         .toggle-desc:hover {
             text-decoration: underline;
         }
+
+        .not-interested-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border-left: 4px solid #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .not-interested-card .job-info {
+            flex: 1;
+        }
+
+        .not-interested-card .job-company {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .not-interested-card .job-role {
+            color: #aaa;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .not-interested-card .job-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.8rem;
+            color: #666;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
             <h1>Internship Application Assistant</h1>
             <p>Your job application todo list</p>
+            <div style="margin-top: 15px;">
+                <a href="/profile" class="btn btn-primary btn-small" style="text-decoration: none;">👤 Edit Profile</a>
+                <a href="/answers" class="btn btn-secondary btn-small" style="text-decoration: none;">📚 Manage Answer
+                    Bank</a>
+            </div>
 
             <div class="stats">
                 <div class="stat">
@@ -500,6 +575,9 @@
             <button class="tab-btn" onclick="switchTab('applied')" id="tab-applied">
                 ✅ Applied
             </button>
+            <button class="tab-btn" onclick="switchTab('not-interested')" id="tab-not-interested">
+                ❌ Not Interested
+            </button>
         </div>
 
         <div id="error-container"></div>
@@ -510,11 +588,17 @@
                 <button class="btn btn-primary" id="next-btn" onclick="openNext()">
                     ▶ Open Next Application
                 </button>
+                <button class="btn btn-success" id="autofill-btn" onclick="runAutofill()" style="display: none;">
+                    🔄 Autofill Current Page
+                </button>
                 <button class="btn btn-secondary" onclick="openAddModal()">
                     + Add Job Manually
                 </button>
                 <button class="btn btn-discover" id="discover-btn" onclick="discoverJobs()">
                     🔍 Find Jobs
+                </button>
+                <button class="btn btn-danger btn-small" onclick="clearPendingJobs()" title="Clear all pending jobs">
+                    🗑 Clear AI Jobs
                 </button>
             </div>
 
@@ -529,6 +613,19 @@
                 <div class="loading">Loading applied jobs...</div>
             </div>
         </div>
+
+        <!-- Not Interested Tab Content -->
+        <div class="tab-content" id="content-not-interested">
+            <div class="actions" style="justify-content: flex-end;">
+                <button class="btn btn-danger btn-small" onclick="clearNotInterestedJobs()"
+                    title="Clear all not interested jobs">
+                    🗑 Clear All
+                </button>
+            </div>
+            <div class="job-list" id="not-interested-list">
+                <div class="loading">Loading not interested jobs...</div>
+            </div>
+        </div>
     </div>
 
     <button class="refresh-btn" onclick="refreshCurrentTab()" title="Refresh list">↻</button>
@@ -541,12 +638,15 @@
                 <div class="form-group">
                     <label>Application Link *</label>
                     <div style="display: flex; gap: 10px;">
-                        <input type="url" id="add-link" required placeholder="Paste Greenhouse or Lever job URL..." style="flex: 1;">
-                        <button type="button" class="btn btn-secondary btn-small" onclick="fetchJobDetails()" id="fetch-btn">
+                        <input type="url" id="add-link" required placeholder="Paste Greenhouse or Lever job URL..."
+                            style="flex: 1;">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="fetchJobDetails()"
+                            id="fetch-btn">
                             Fetch
                         </button>
                     </div>
-                    <small style="color: #666; margin-top: 5px; display: block;">Supports Greenhouse and Lever URLs. Details will be auto-filled.</small>
+                    <small style="color: #666; margin-top: 5px; display: block;">Supports Greenhouse and Lever URLs.
+                        Details will be auto-filled.</small>
                 </div>
                 <div id="fetched-details" style="display: none;">
                     <div class="form-group">
@@ -580,7 +680,8 @@
     <div class="modal" id="questions-modal">
         <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
             <h2>📝 Additional Questions</h2>
-            <p style="color: #888; margin-bottom: 20px;">These fields couldn't be auto-filled. Your answers will be saved for future applications.</p>
+            <p style="color: #888; margin-bottom: 20px;">These fields couldn't be auto-filled. Your answers will be
+                saved for future applications.</p>
             <div id="questions-container"></div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-primary" onclick="submitAnswers()">Submit Answers</button>
@@ -599,7 +700,8 @@
             </p>
             <div id="apply-status" style="display: none; margin-bottom: 15px;"></div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-success" onclick="submitApplied()" id="apply-submit-btn">Mark as Applied</button>
+                <button type="button" class="btn btn-success" onclick="submitApplied()" id="apply-submit-btn">Mark as
+                    Applied</button>
                 <button type="button" class="btn btn-secondary" onclick="closeApplyModal()">Cancel</button>
             </div>
         </div>
@@ -608,8 +710,10 @@
     <script>
         let jobs = [];
         let appliedJobs = [];
+        let notInterestedJobs = [];
         let currentIndex = 0;
         let currentTab = 'pending';
+        let autofillSessionActive = false;
 
         // Load jobs on page load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -621,15 +725,17 @@
             refreshBtn.classList.add('spinning');
 
             try {
-                // Load both in parallel but wait for both to complete
+                // Load all in parallel but wait for all to complete
                 await Promise.all([
                     loadJobsData(),
-                    loadAppliedJobsData()
+                    loadAppliedJobsData(),
+                    loadNotInterestedJobsData()
                 ]);
 
-                // Render everything after both are loaded
+                // Render everything after all are loaded
                 renderJobs();
                 renderAppliedJobs();
+                renderNotInterestedJobs();
                 updateStats();
             } catch (error) {
                 console.error('Failed to initialize:', error);
@@ -674,6 +780,23 @@
             }
         }
 
+        async function loadNotInterestedJobsData() {
+            try {
+                const response = await fetch('/api/jobs/not-interested');
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error(data.error);
+                    notInterestedJobs = [];
+                } else {
+                    notInterestedJobs = data.jobs;
+                }
+            } catch (error) {
+                console.error('Failed to load not interested jobs:', error);
+                notInterestedJobs = [];
+            }
+        }
+
         function switchTab(tab) {
             currentTab = tab;
 
@@ -689,8 +812,10 @@
         function refreshCurrentTab() {
             if (currentTab === 'pending') {
                 loadJobs();
-            } else {
+            } else if (currentTab === 'applied') {
                 loadAppliedJobs();
+            } else if (currentTab === 'not-interested') {
+                loadNotInterestedJobs();
             }
         }
 
@@ -712,6 +837,52 @@
             await loadAppliedJobsData();
             renderAppliedJobs();
             updateStats();
+        }
+
+        async function loadNotInterestedJobs() {
+            await loadNotInterestedJobsData();
+            renderNotInterestedJobs();
+            updateStats();
+        }
+
+        function renderNotInterestedJobs() {
+            const container = document.getElementById('not-interested-list');
+
+            if (notInterestedJobs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No dismissed jobs</h3>
+                        <p>Jobs you mark as "not interested" will appear here. You can restore them later if needed.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="section-label">❌ Not Interested</div>';
+            notInterestedJobs.forEach((job, index) => {
+                const platformClass = `platform-${job.platform || 'other'}`;
+
+                html += `
+                    <div class="not-interested-card">
+                        <div class="job-info">
+                            <div class="job-company">${escapeHtml(job.company)}</div>
+                            <div class="job-role">${escapeHtml(job.role || 'Position')}</div>
+                            <div class="job-meta">
+                                <span class="platform-badge ${platformClass}">${job.platform || 'other'}</span>
+                                <span>📅 Dismissed: ${job.date_dismissed || 'Unknown'}</span>
+                                <a href="${job.link}" target="_blank" style="color: #667eea;">View Posting</a>
+                            </div>
+                        </div>
+                        <div class="job-actions">
+                            <button class="btn btn-small btn-secondary" onclick="restoreJob(${index})">
+                                ↩ Restore
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
         }
 
         function renderAppliedJobs() {
@@ -740,6 +911,7 @@
                             <span class="platform-badge ${platformClass}">${job.platform || 'other'}</span>
                             <span>📅 Applied: ${job.date_applied || 'Unknown'}</span>
                             <a href="${job.link}" target="_blank" style="color: #667eea;">View Posting</a>
+                            <button class="btn btn-small btn-secondary" onclick="undoApplied(${index})" style="margin-left: 10px;">↩ Undo</button>
                         </div>
                         ${hasDescription ? `
                             <div class="job-description collapsed" id="desc-${index}">
@@ -764,6 +936,34 @@
             } else {
                 desc.classList.add('collapsed');
                 btn.textContent = 'Show more';
+            }
+        }
+
+        async function undoApplied(index) {
+            const job = appliedJobs[index];
+            if (!job) return;
+
+            if (!confirm(`Move "${job.company} - ${job.role}" back to pending list?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/unapply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link: job.link })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Job moved back to pending list');
+                    await loadJobs();
+                    await loadAppliedJobs();
+                } else {
+                    showError(data.error || 'Failed to undo');
+                }
+            } catch (error) {
+                showError('Failed to undo: ' + error.message);
             }
         }
 
@@ -825,6 +1025,9 @@
                         <button class="btn btn-small btn-success" onclick="event.stopPropagation(); markApplied(${index})">
                             ✓ Applied
                         </button>
+                        <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); markNotInterested(${index})" title="Not interested in this job">
+                            ✗
+                        </button>
                     </div>
                 </div>
             `;
@@ -859,14 +1062,14 @@
             if (!job) return;
 
             // Show loading state
-            showInfo('Opening application and running autofill...');
+            showInfo('Opening browser...');
 
             try {
-                // Open the link with platform info
-                const response = await fetch('/api/open', {
+                // Open the browser without auto-filling
+                const response = await fetch('/api/open-browser', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({link: job.link, platform: job.platform})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link: job.link, platform: job.platform })
                 });
 
                 const data = await response.json();
@@ -876,25 +1079,63 @@
                     return;
                 }
 
-                // Show message about how it opened
-                if (data.method === 'autofill') {
-                    if (data.unfilled_fields && data.unfilled_fields.length > 0) {
-                        // Show questions modal
-                        currentUnfilledFields = data.unfilled_fields;
-                        showQuestionsModal(data.unfilled_fields);
-                        showSuccess(`Filled ${data.filled_count}/${data.total_fields} fields. Please answer the remaining questions.`);
-                    } else {
-                        showSuccess(`All ${data.filled_count} fields filled! Review and submit in the browser.`);
-                    }
-                } else if (data.message) {
-                    showInfo(data.message);
-                }
+                // Show the Autofill button and status message
+                autofillSessionActive = true;
+                document.getElementById('autofill-btn').style.display = 'inline-block';
+                currentUnfilledFields = [];
+                closeQuestionsModal();
+
+                showInfo('Browser opened. Navigate to the application form, then click "Autofill Current Page".');
 
                 // Highlight this job
                 currentIndex = index;
                 renderJobs();
             } catch (error) {
                 showError('Failed to open link: ' + error.message);
+            }
+        }
+
+        async function runAutofill() {
+            if (!autofillSessionActive) {
+                showError('No browser session active. Click "Open" on a job first.');
+                return;
+            }
+
+            const btn = document.getElementById('autofill-btn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Filling...';
+
+            try {
+                const response = await fetch('/api/autofill/refill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Autofill Current Page';
+
+                if (data.success) {
+                    // Reset and update questions
+                    currentUnfilledFields = data.unfilled_fields || [];
+
+                    if (data.total_fields === 0) {
+                        showInfo('No form fields found on this page. Navigate to the application form and try again.');
+                    } else if (currentUnfilledFields.length > 0) {
+                        showQuestionsModal(currentUnfilledFields);
+                        showSuccess(`Filled ${data.filled_count}/${data.total_fields} fields. Answer the remaining questions below.`);
+                    } else {
+                        closeQuestionsModal();
+                        showSuccess(`Filled all ${data.filled_count} fields! Review and submit in the browser.`);
+                    }
+                } else {
+                    showError(data.error || 'Autofill failed');
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Autofill Current Page';
+                showError('Autofill failed: ' + error.message);
             }
         }
 
@@ -913,8 +1154,8 @@
                             <select id="question-${index}" data-selector="${escapeHtml(field.selector)}">
                                 <option value="">Select an option...</option>
                                 ${field.options.map(opt =>
-                                    `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.text)}</option>`
-                                ).join('')}
+                        `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.text)}</option>`
+                    ).join('')}
                             </select>
                         </div>
                     `;
@@ -925,6 +1166,30 @@
                             <label>${escapeHtml(field.label)} ${required}</label>
                             <textarea id="question-${index}" data-selector="${escapeHtml(field.selector)}"
                                 rows="3" placeholder="Enter your answer..."></textarea>
+                        </div>
+                    `;
+                } else if (field.type === 'checkbox') {
+                    // Checkbox
+                    html += `
+                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="question-${index}" data-selector="${escapeHtml(field.selector)}"
+                                data-type="checkbox" style="width: 20px; height: 20px; cursor: pointer;">
+                            <label for="question-${index}" style="cursor: pointer; margin: 0;">
+                                ${escapeHtml(field.label)} ${required}
+                            </label>
+                        </div>
+                    `;
+                } else if (field.type === 'radio') {
+                    // Radio buttons - show as dropdown for simplicity
+                    html += `
+                        <div class="form-group">
+                            <label>${escapeHtml(field.label)} ${required}</label>
+                            <select id="question-${index}" data-selector="${escapeHtml(field.selector)}" data-type="radio">
+                                <option value="">Select an option...</option>
+                                ${(field.options || []).map(opt =>
+                        `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.text)}</option>`
+                    ).join('')}
+                            </select>
                         </div>
                     `;
                 } else {
@@ -948,16 +1213,29 @@
 
             currentUnfilledFields.forEach((field, index) => {
                 const input = document.getElementById(`question-${index}`);
-                if (input && input.value) {
-                    answers[field.selector] = input.value;
+                if (input) {
+                    const inputType = input.dataset.type || input.type;
+                    if (inputType === 'checkbox') {
+                        // For checkboxes, send the checked state
+                        answers[field.selector] = {
+                            value: input.checked,
+                            type: 'checkbox'
+                        };
+                    } else if (input.value) {
+                        // For other inputs, send the value
+                        answers[field.selector] = {
+                            value: input.value,
+                            type: inputType
+                        };
+                    }
                 }
             });
 
             try {
                 const response = await fetch('/api/autofill/answer', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({answers})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answers })
                 });
 
                 const data = await response.json();
@@ -983,6 +1261,118 @@
             document.getElementById('questions-modal').classList.remove('active');
             document.getElementById('questions-container').innerHTML = '';
             currentUnfilledFields = [];
+        }
+
+        async function markNotInterested(index) {
+            const job = jobs[index];
+            if (!job) return;
+
+            // Confirm with user
+            if (!confirm(`Mark "${job.company} - ${job.role}" as not interested?\n\nThis will move it to the Not Interested list.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/not-interested', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link: job.link })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Moved to Not Interested');
+                    await loadJobs();
+                    await loadNotInterestedJobs();
+                } else {
+                    showError(data.error || 'Failed to mark as not interested');
+                }
+            } catch (error) {
+                showError('Failed: ' + error.message);
+            }
+        }
+
+        async function restoreJob(index) {
+            const job = notInterestedJobs[index];
+            if (!job) return;
+
+            try {
+                const response = await fetch('/api/jobs/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link: job.link })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Job restored to Pending');
+                    await loadJobs();
+                    await loadNotInterestedJobs();
+                } else {
+                    showError(data.error || 'Failed to restore job');
+                }
+            } catch (error) {
+                showError('Failed: ' + error.message);
+            }
+        }
+
+        async function clearPendingJobs() {
+            const aiJobs = jobs.filter(j => !j.is_manual);
+            if (aiJobs.length === 0) {
+                showInfo('No AI-discovered jobs to clear');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to clear all ${aiJobs.length} AI-discovered jobs?\n\nThis cannot be undone. Manual jobs will not be affected.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'ai-searched' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('AI-discovered jobs cleared');
+                    await loadJobs();
+                } else {
+                    showError(data.error || 'Failed to clear jobs');
+                }
+            } catch (error) {
+                showError('Failed: ' + error.message);
+            }
+        }
+
+        async function clearNotInterestedJobs() {
+            if (notInterestedJobs.length === 0) {
+                showInfo('No jobs to clear');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to permanently delete all ${notInterestedJobs.length} not interested jobs?\n\nThis cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'not-interested' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Not interested list cleared');
+                    await loadNotInterestedJobs();
+                } else {
+                    showError(data.error || 'Failed to clear jobs');
+                }
+            } catch (error) {
+                showError('Failed: ' + error.message);
+            }
         }
 
         let currentApplyingJob = null;
@@ -1015,7 +1405,7 @@
                 // Backend will auto-fetch the job description
                 const response = await fetch('/api/jobs/applied', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         link: currentApplyingJob.link
                     })
@@ -1023,6 +1413,11 @@
 
                 const data = await response.json();
                 if (data.success) {
+                    // Reset button state before closing
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Mark as Applied';
+                    statusDiv.style.display = 'none';
+
                     closeApplyModal();
                     showSuccess('Marked as applied! Job description saved.');
                     // Reload both lists
@@ -1080,7 +1475,7 @@
             try {
                 const response = await fetch('/api/jobs/fetch', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: link })
                 });
 
@@ -1102,7 +1497,11 @@
                 }
             } catch (error) {
                 document.getElementById('fetched-details').style.display = 'block';
-                showFetchStatus('Fetch failed: ' + error.message + '. Please enter manually.', 'error');
+                let msg = error.message;
+                if (msg === 'Failed to fetch') {
+                    msg = 'Server connection failed (is run_ui.py running?)';
+                }
+                showFetchStatus('Fetch error: ' + msg + '. Please enter manually.', 'error');
             } finally {
                 fetchBtn.disabled = false;
                 fetchBtn.textContent = 'Fetch';
@@ -1154,7 +1553,7 @@
             try {
                 const response = await fetch('/api/jobs/add', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(job)
                 });
 
@@ -1183,7 +1582,7 @@
             try {
                 const response = await fetch('/api/discover', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 const data = await response.json();
@@ -1232,6 +1631,72 @@
             setTimeout(hideError, 3000);
         }
 
+        function showAutofillMessage(message, success = true) {
+            const container = document.getElementById('error-container');
+            const bgClass = success ? 'success-message' : 'info-message';
+            container.innerHTML = `
+                <div class="${bgClass}" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${escapeHtml(message)}</span>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="refillAutofill()" class="btn btn-small btn-primary" style="margin: 0;">
+                            🔄 Refill
+                        </button>
+                        <button onclick="closeAutofillSession()" class="btn btn-small btn-secondary" style="margin: 0;">
+                            ✕ Close Browser
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Don't auto-hide - keep visible until user acts
+        }
+
+        async function refillAutofill() {
+            if (!autofillSessionActive) {
+                showError('No active autofill session');
+                return;
+            }
+
+            showInfo('Refilling form fields...');
+
+            try {
+                const response = await fetch('/api/autofill/refill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    if (data.total_fields === 0) {
+                        showAutofillMessage('No form fields found. Navigate to the application form and try again.', false);
+                    } else if (data.unfilled_fields && data.unfilled_fields.length > 0) {
+                        currentUnfilledFields = data.unfilled_fields;
+                        showQuestionsModal(data.unfilled_fields);
+                        showAutofillMessage(`Refilled ${data.filled_count}/${data.total_fields} fields.`);
+                    } else {
+                        showAutofillMessage(`Refilled all ${data.filled_count} fields! Review and submit.`);
+                    }
+                } else {
+                    showAutofillMessage(data.error || 'Refill failed', false);
+                }
+            } catch (error) {
+                showAutofillMessage('Refill failed: ' + error.message, false);
+            }
+        }
+
+        async function closeAutofillSession() {
+            try {
+                await fetch('/api/autofill/close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (e) {
+                // Ignore errors
+            }
+            autofillSessionActive = false;
+            hideError();
+            showSuccess('Autofill session closed');
+        }
+
         function hideError() {
             document.getElementById('error-container').innerHTML = '';
         }
@@ -1266,4 +1731,5 @@
         });
     </script>
 </body>
+
 </html>

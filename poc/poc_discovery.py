@@ -337,6 +337,20 @@ class GreenhouseClient:
         except json.JSONDecodeError as e:
             return None, f"Invalid JSON: {e}"
 
+    def fetch_board_name(self, company: str) -> str | None:
+        """Fetch the display name of a Greenhouse board (i.e. the real company name)."""
+        url = f"{self.BASE_API_URL}/{company}"
+        try:
+            response = self.session.get(url, timeout=15)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            name = data.get('name', '').strip()
+            return name if name else None
+        except (requests.exceptions.RequestException, json.JSONDecodeError):
+            return None
+
     def parse_job(self, job: dict) -> JobListing:
         """Parse a Greenhouse job into JobListing."""
         title = job.get("title", "")
@@ -659,13 +673,17 @@ def fetch_job_details(url: str) -> dict:
         content = job_data.get('content', '')  # HTML description
         location = job_data.get('location', {}).get('name') if job_data.get('location') else None
 
+        # Fetch the real company name from the board endpoint
+        board_name = client.fetch_board_name(company)
+        company_display = board_name if board_name else company.title()
+
         # Convert HTML to plain text
         description = html_to_plain_text(content)
 
         return {
             'success': True,
             'platform': platform,
-            'company': company.title(),
+            'company': company_display,
             'role': title,
             'description': description,
             'location': location,

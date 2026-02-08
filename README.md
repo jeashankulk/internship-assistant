@@ -63,26 +63,23 @@ Edit `.env` and add your spreadsheet ID:
 GOOGLE_SPREADSHEET_ID=your_spreadsheet_id_here
 ```
 
-### 6. Set Up Your Profile
-
-```bash
-python poc/setup_profile.py
-```
-
-This interactive wizard will:
-- Create `storage/profile.json` with your info for auto-filling applications
-- Configure `config/roles.json` with your target role preferences
-
-The wizard will ask what types of internships you're looking for:
-- Software Engineering
-- Data Science / ML / AI
-- Quantitative / Trading
-- Product / Program Management
-- Design / UX / UI
-- Finance / Accounting
-- Marketing / Growth
-
-You can select multiple categories by entering comma-separated numbers (e.g., `1,2,3`).
+### 6. Set Up Your Profile (New!)
+ 
+ **Option A: Resume-Driven Setup (Recommended)**
+ 
+ 1. Run the application: `python run_ui.py`
+ 2. Open `http://localhost:5000`
+ 3. Click **👤 Edit Profile** (or go to `/profile`)
+ 4. Upload your PDF Resume
+ 5. The AI will extract your details. Review and click Save.
+ 
+ **Option B: Manual CLI Setup (Deprecated)**
+ 
+ ```bash
+ python poc/setup_profile.py
+ ```
+ 
+ This interactive wizard will manually ask for your details if you prefer not to use the resume parser.
 
 ### 7. Advanced: Manual Role Configuration (Optional)
 

@@ -96,6 +96,8 @@ class ApplicantProfile:
     website: str = "https://testuser.dev"
     resume_path: str = ""
     school: str = "Test University"
+    degree: str = "Bachelor's"
+    major: str = "Computer Science"
     graduation_year: str = "2026"
     graduation_month: str = "May"
     work_authorization: str = "yes"
@@ -126,6 +128,8 @@ class ApplicantProfile:
             website=data.get("website", ""),
             resume_path=data.get("resume_path", ""),
             school=data.get("school", ""),
+            degree=data.get("degree", "Bachelor's"),
+            major=data.get("major", ""),
             graduation_year=data.get("graduation_year", "2026"),
             graduation_month=data.get("graduation_month", "May"),
             work_authorization=data.get("work_authorization", "yes"),
@@ -147,6 +151,7 @@ class FormField:
     value: str | None = None
     filled: bool = False
     error: str | None = None
+    iframe_url: str = ""  # URL of the iframe if the field is inside one
 
 
 @dataclass
@@ -349,6 +354,26 @@ class AutofillEngine:
         self.page = None
         self.unfilled_fields = []  # Track fields we couldn't fill
 
+        # AI SETUP
+        try:
+            from app.ai.llm import LLMClient
+            self.llm = LLMClient()
+        except Exception as e:
+            print(f"[WARNING] AI initialization failed: {e}")
+            self.llm = None
+
+        # Load resume text if available
+        self.resume_text = ""
+        if self.profile.resume_path and Path(self.profile.resume_path).exists():
+            if self.profile.resume_path.lower().endswith('.pdf'):
+                try:
+                    from pypdf import PdfReader
+                    reader = PdfReader(self.profile.resume_path)
+                    for page in reader.pages:
+                        self.resume_text += page.extract_text() + "\n"
+                except Exception as e:
+                    print(f"[WARNING] Failed to load resume text: {e}")
+
     def __enter__(self):
         from playwright.sync_api import sync_playwright
 
@@ -360,24 +385,55 @@ class AutofillEngine:
             user_data_dir = STORAGE_DIR / "browser_profile"
             user_data_dir.mkdir(parents=True, exist_ok=True)
 
-            self.context = self.playwright.chromium.launch_persistent_context(
-                user_data_dir=str(user_data_dir),
-                headless=self.headless,
-                # Stealth settings
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--no-sandbox',
-                    '--disable-web-security',
-                    '--disable-features=IsolateOrigins,site-per-process',
-                ],
-                ignore_default_args=['--enable-automation'],
-                # Make it look like a real browser
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                locale='en-US',
-                timezone_id='America/New_York',
-            )
-            self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+            try:
+                self.context = self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(user_data_dir),
+                    headless=self.headless,
+                    # Stealth settings
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--no-sandbox',
+                        '--disable-web-security',
+                        '--disable-features=IsolateOrigins,site-per-process',
+                    ],
+                    ignore_default_args=['--enable-automation'],
+                    viewport={'width': 1200, 'height': 900},
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                )
+                self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+                self._is_persistent_context = True
+            except Exception as e:
+                # If persistent context fails (profile locked/corrupted), fall back to regular browser
+                print(f"[WARNING] Persistent browser context failed: {e}")
+                print("[INFO] Falling back to fresh browser session...")
+
+                # Try to clean up corrupted profile
+                import shutil
+                try:
+                    if user_data_dir.exists():
+                        shutil.rmtree(user_data_dir)
+                        print(f"[INFO] Removed corrupted browser profile at {user_data_dir}")
+                except Exception:
+                    pass
+
+                # Launch regular browser with stealth settings
+                self.browser = self.playwright.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--no-sandbox',
+                    ],
+                )
+                self.context = self.browser.new_context(
+                    viewport={'width': 1200, 'height': 900},
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                )
+                self.page = self.context.new_page()
+                self._is_persistent_context = False
 
             # Additional stealth: remove webdriver property
             self.page.add_init_script("""
@@ -396,16 +452,31 @@ class AutofillEngine:
         else:
             self.browser = self.playwright.chromium.launch(headless=self.headless)
             self.page = self.browser.new_page()
+            self._is_persistent_context = False
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.context:
-            self.context.close()
-        if self.browser:
-            self.browser.close()
-        if self.playwright:
-            self.playwright.stop()
+        # Close resources gracefully to avoid Chrome "unexpectedly quit" errors
+        try:
+            if self.context:
+                self.context.close()
+        except Exception:
+            pass
+
+        # Only close browser if we created one (non-persistent context case)
+        if not getattr(self, '_is_persistent_context', True):
+            try:
+                if self.browser:
+                    self.browser.close()
+            except Exception:
+                pass
+
+        try:
+            if self.playwright:
+                self.playwright.stop()
+        except Exception:
+            pass
 
     def detect_form_type(self, url: str) -> FormType:
         """Detect if form is Greenhouse, Lever, Workday, or mock."""
@@ -421,6 +492,235 @@ class AutofillEngine:
         elif "mock_lever" in url_lower or "lever_mock" in url_lower:
             return FormType.MOCK_LEVER
         return FormType.UNKNOWN
+
+    def _click_apply_button_if_present(self) -> bool:
+        """Click Apply button if we're on a job description page (not the form yet).
+
+        Handles the case where clicking Apply opens a new tab - switches to new tab
+        and closes the old one.
+        """
+        # First, check if we're already on an application form
+        # Look for typical form input fields (name, email, resume upload, etc.)
+        # But be strict - need multiple indicators to be sure it's a real form
+        form_indicators = [
+            'input[name*="name" i]',
+            'input[name*="email" i]',
+            'input[type="file"]',
+            'input[name*="resume" i]',
+            'input[name*="phone" i]',
+            '#first_name',
+            '#last_name',
+            '#email',
+        ]
+        form_field_count = 0
+        for indicator in form_indicators:
+            try:
+                el = self.page.query_selector(indicator)
+                if el and el.is_visible():
+                    form_field_count += 1
+            except:
+                continue
+
+        # Only skip if we find at least 2 form indicators (to avoid false positives)
+        if form_field_count >= 2:
+            print(f"  [AUTO-CLICK] Already on form (found {form_field_count} form fields), skipping Apply button search")
+            return False
+
+        print(f"  [AUTO-CLICK] Found {form_field_count} form indicators, looking for Apply button...")
+
+        apply_selectors = [
+            # Greenhouse selectors
+            'a[data-job-action="apply"]',
+            '#apply_button',
+            'a.job-board-apply-link',
+            '.job-post-actions a:has-text("Apply")',
+            'a.application-link',
+            # Company-hosted Greenhouse pages
+            'a[href*="#application"]',
+            'a[href*="#app"]',
+            'button[data-test*="apply"]',
+            'a[data-test*="apply"]',
+            '[class*="apply-button"]',
+            '[class*="ApplyButton"]',
+            '[class*="apply_button"]',
+            # Generic Apply buttons
+            'a:has-text("Apply for this job")',
+            'a:has-text("Apply Now")',
+            'a:has-text("Apply for this position")',
+            'button:has-text("Apply for this job")',
+            'button:has-text("Apply Now")',
+            'button:has-text("Apply for this position")',
+            # Lever selectors
+            'a.postings-btn-wrapper',
+            'a[href*="/apply"]',
+            'a.posting-btn-submit',
+            # Last resort - generic Apply text
+            'a:has-text("Apply")',
+            'button:has-text("Apply")',
+            # Even more generic - any clickable with Apply
+            'div:has-text("Apply"):not(:has(div:has-text("Apply")))',  # Innermost div with Apply
+            '[role="button"]:has-text("Apply")',
+            'text=Apply',  # Playwright text selector
+        ]
+
+        print(f"  [AUTO-CLICK] Searching {len(apply_selectors)} selectors...")
+        for selector in apply_selectors:
+            try:
+                btn = self.page.query_selector(selector)
+                if btn and btn.is_visible():
+                    # Check it's not a disabled or tiny button
+                    box = btn.bounding_box()
+                    if box and box['width'] > 30 and box['height'] > 15:
+                        print(f"  [AUTO-CLICK] Found Apply button: {selector}")
+
+                        old_page = self.page
+                        old_url = self.page.url
+
+                        # Use expect_page to catch new tab opening
+                        try:
+                            with self.context.expect_page(timeout=5000) as new_page_info:
+                                btn.click()
+
+                            # New tab was opened
+                            new_page = new_page_info.value
+                            print(f"  [AUTO-CLICK] New tab opened: {new_page.url[:60]}...")
+
+                            # Wait for the new page to load
+                            try:
+                                new_page.wait_for_load_state("networkidle", timeout=10000)
+                            except:
+                                time.sleep(2)
+
+                            # Switch to new page
+                            self.page = new_page
+                            print(f"  [AUTO-CLICK] Switched to new tab")
+
+                            # Close old tab
+                            try:
+                                old_page.close()
+                                print(f"  [AUTO-CLICK] Closed old tab")
+                            except Exception as e:
+                                print(f"  [AUTO-CLICK] Could not close old tab: {e}")
+
+                        except Exception as e:
+                            # No new tab opened - check if same page navigated
+                            print(f"  [AUTO-CLICK] No new tab (clicking in same page)")
+                            time.sleep(2)
+                            try:
+                                new_url = self.page.url
+                                if new_url != old_url:
+                                    print(f"  [AUTO-CLICK] Page navigated to: {new_url[:60]}...")
+                            except:
+                                pass
+
+                        return True
+            except Exception as e:
+                print(f"  [AUTO-CLICK] Error with selector {selector}: {e}")
+                continue
+
+        # Debug: print what clickable elements exist on the page with "apply" text
+        print("  [AUTO-CLICK] No Apply button found. Searching for any Apply-like elements...")
+        try:
+            # Search all elements, not just a/button
+            apply_elements = self.page.query_selector_all('a, button, div, span, [role="button"], [onclick]')
+            found_any = False
+            for el in apply_elements[:100]:  # Check first 100 elements
+                try:
+                    text = el.inner_text().strip().lower()
+                    if 'apply' in text and len(text) < 50:
+                        href = el.get_attribute('href') or ''
+                        classes = el.get_attribute('class') or ''
+                        tag = el.evaluate('el => el.tagName')
+                        print(f"  [AUTO-CLICK] Found '{tag}' with 'apply': text='{text[:30]}', class='{classes[:40]}'")
+                        found_any = True
+                except:
+                    pass
+            if not found_any:
+                # Print page title and some content to verify page loaded
+                title = self.page.title()
+                print(f"  [AUTO-CLICK] Page title: '{title}'")
+                body_text = self.page.inner_text('body')[:200]
+                print(f"  [AUTO-CLICK] Page content preview: '{body_text[:100]}...'")
+        except Exception as e:
+            print(f"  [AUTO-CLICK] Error searching for apply elements: {e}")
+
+        return False
+
+    def _inject_autofill_button(self):
+        """Inject a floating status indicator onto the page."""
+        self.page.evaluate("""
+            // Remove existing container if any
+            const existing = document.getElementById('autofill-helper-container');
+            if (existing) existing.remove();
+
+            // Create floating status container
+            const container = document.createElement('div');
+            container.id = 'autofill-helper-container';
+            container.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                z-index: 99999;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                background: rgba(255,255,255,0.95);
+                padding: 10px 14px;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            // Create header
+            const header = document.createElement('div');
+            header.id = 'autofill-helper-btn';
+            header.innerHTML = '🤖 Autofill Assistant';
+            header.style.cssText = `
+                font-size: 13px;
+                font-weight: bold;
+                color: #333;
+            `;
+
+            // Create status text
+            const status = document.createElement('div');
+            status.id = 'autofill-status';
+            status.style.cssText = `
+                font-size: 11px;
+                color: #666;
+            `;
+            status.textContent = 'Use main UI button to autofill';
+
+            container.appendChild(header);
+            container.appendChild(status);
+            document.body.appendChild(container);
+        """)
+
+    def _update_autofill_button_status(self, message: str, success: bool = True):
+        """Update the injected button's status message."""
+        color = '#22c55e' if success else '#ef4444'
+        self.page.evaluate(f"""
+            const btn = document.getElementById('autofill-helper-btn');
+            const status = document.getElementById('autofill-status');
+            if (btn) {{
+                btn.innerHTML = '🔄 Autofill';
+                btn.disabled = false;
+            }}
+            if (status) {{
+                status.textContent = '{message}';
+                status.style.color = '{color}';
+            }}
+        """)
+
+    def _check_autofill_requested(self) -> bool:
+        """Check if user clicked the injected Autofill button."""
+        try:
+            requested = self.page.evaluate("window.__AUTOFILL_REQUESTED__")
+            if requested:
+                self.page.evaluate("window.__AUTOFILL_REQUESTED__ = false")
+                return True
+        except Exception:
+            pass
+        return False
 
     def analyze_form(self, url: str) -> FormAnalysis:
         """Analyze a form to identify all fields."""
@@ -446,6 +746,17 @@ class AutofillEngine:
             else:
                 time.sleep(2)  # Wait for any dynamic content
 
+            # Inject the floating Autofill button onto the page
+            self._inject_autofill_button()
+
+            # Try to click Apply button if we're on a job description page
+            # This handles cases where the URL goes to job listing, not the form
+            if self._click_apply_button_if_present():
+                print("  [INFO] Clicked Apply button, waiting for form to load...")
+                time.sleep(2)
+                # Re-inject button after page navigation
+                self._inject_autofill_button()
+
             # Detect all input fields
             fields = self._detect_fields()
             analysis.fields_detected = fields
@@ -467,23 +778,92 @@ class AutofillEngine:
         fields = []
 
         # Find all input elements - include Workday-specific selectors
-        inputs = self.page.query_selector_all(
-            "input, select, textarea, "
-            "[data-automation-id*='input'], "
-            "[data-automation-id*='textInput'], "
-            "[data-automation-id*='dropdown'], "
-            "[role='textbox'], "
-            "[role='combobox']"
-        )
+        # Find all input elements - include Workday-specific selectors
+        # Store (element, iframe_url) tuples
+        all_elements = []
 
-        for element in inputs:
+        try:
+            # 1. Main Page
+            main_inputs = self.page.query_selector_all(
+                "input, select, textarea, "
+                "[data-automation-id*='input'], "
+                "[data-automation-id*='textInput'], "
+                "[data-automation-id*='dropdown'], "
+                "[role='textbox'], "
+                "[role='combobox']"
+            )
+            print(f"  [DEBUG] Found {len(main_inputs)} total input elements on main page")
+            for el in main_inputs:
+                all_elements.append((el, ""))
+
+            # 2. Iframes
+            iframes = self.page.frames
+            if len(iframes) > 1:
+                print(f"  [DEBUG] Page has {len(iframes)} frames - checking all")
+                for frame in iframes:
+                    try:
+                        if frame == self.page.main_frame:
+                            continue
+                        frame_url = frame.url
+                        frame_inputs = frame.query_selector_all("input, select, textarea")
+                        # print(f"  [DEBUG] Found {len(frame_inputs)} inputs in iframe: {frame_url[:50]}...")
+                        for el in frame_inputs:
+                            all_elements.append((el, frame_url))
+                    except:
+                        pass
+        except Exception as e:
+            print(f"  [DEBUG] Error checking iframes: {e}")
+
+        visible_count = 0
+        skipped_hidden_count = 0
+
+        for item in all_elements:
             try:
+                element = item[0]
+                iframe_url = item[1]
+                # Use a lenient visibility check - only skip if truly hidden
+                # (display:none, visibility:hidden, or type=hidden)
+                try:
+                    is_hidden = element.evaluate("""el => {
+                        const style = window.getComputedStyle(el);
+                        // Only skip if explicitly hidden
+                        if (style.display === 'none') return true;
+                        if (style.visibility === 'hidden') return true;
+                        if (el.type === 'hidden') return true;
+                        // Check if inside a hidden parent
+                        let parent = el.parentElement;
+                        while (parent) {
+                            const parentStyle = window.getComputedStyle(parent);
+                            if (parentStyle.display === 'none') return true;
+                            parent = parent.parentElement;
+                        }
+                        return false;
+                    }""")
+                except:
+                    is_hidden = False  # Assume visible if check fails
+
+                if is_hidden:
+                    skipped_hidden_count += 1
+                    continue
+                visible_count += 1
+
                 tag_name = element.evaluate("el => el.tagName.toLowerCase()")
                 input_type = element.get_attribute("type") or "text"
                 name = element.get_attribute("name") or ""
                 id_attr = element.get_attribute("id") or ""
                 placeholder = element.get_attribute("placeholder") or ""
                 required = element.get_attribute("required") is not None
+
+                # Skip elements inside cookie consent dialogs (but log it)
+                if self._is_inside_cookie_banner(element):
+                    print(f"  [DEBUG] Skipping cookie banner field: {name or id_attr}")
+                    continue
+
+                # Skip fields with cookie-related names/ids
+                field_text = f"{name} {id_attr} {placeholder}".lower()
+                if self._is_cookie_related(field_text):
+                    print(f"  [DEBUG] Skipping cookie-related field: {name or id_attr}")
+                    continue
 
                 # Determine field type
                 if tag_name == "select":
@@ -509,31 +889,211 @@ class AutofillEngine:
                 if input_type == "hidden":
                     continue
 
-                # Build selector
-                if id_attr:
-                    selector = f"#{id_attr}"
-                elif name:
-                    selector = f'[name="{name}"]'
-                else:
+                # Build selector - try multiple strategies
+                selector = self._build_selector(element, id_attr, name, placeholder, tag_name, input_type)
+                if not selector:
+                    print(f"  [DEBUG] Skipping field - no valid selector found")
                     continue
 
                 # Get label
                 label = self._find_label(element, name, id_attr, placeholder)
 
+                # Skip fields with noise/meaningless labels
+                if self._is_noise_label(label, name, id_attr):
+                    print(f"  [DEBUG] Skipping noise label: '{label}' (name={name}, id={id_attr})")
+                    continue
+
+                print(f"  [DEBUG] Found valid field: '{label}' (type={field_type}, selector={selector})")
                 field = FormField(
                     field_type=field_type,
                     label=label,
                     selector=selector,
                     name=name,
                     required=required,
+                    iframe_url=iframe_url
                 )
                 fields.append(field)
 
             except Exception as e:
                 # Skip fields that can't be processed
+                print(f"  [DEBUG] Error processing element: {e}")
                 continue
 
+        print(f"  [DEBUG] Summary: {visible_count} visible, {skipped_hidden_count} hidden, {len(fields)} valid fields")
         return fields
+
+    def _build_selector(self, element, id_attr: str, name: str, placeholder: str,
+                         tag_name: str, input_type: str) -> str:
+        """Build a unique CSS selector for a form field."""
+        # Strategy 1: Use id
+        if id_attr:
+            return f"#{id_attr}"
+
+        # Strategy 2: Use name
+        if name:
+            return f'[name="{name}"]'
+
+        # Strategy 3: Use data attributes
+        try:
+            data_attrs = element.evaluate("""el => {
+                const attrs = {};
+                for (const attr of el.attributes) {
+                    if (attr.name.startsWith('data-') && attr.value) {
+                        attrs[attr.name] = attr.value;
+                    }
+                }
+                return attrs;
+            }""")
+            # Prefer specific data attributes
+            for attr_name in ['data-automation-id', 'data-testid', 'data-field', 'data-qa']:
+                if attr_name in data_attrs:
+                    return f'[{attr_name}="{data_attrs[attr_name]}"]'
+            # Use any unique data attribute
+            if data_attrs:
+                attr_name, attr_val = next(iter(data_attrs.items()))
+                return f'[{attr_name}="{attr_val}"]'
+        except:
+            pass
+
+        # Strategy 4: Use aria-label
+        try:
+            aria_label = element.get_attribute("aria-label")
+            if aria_label:
+                # Escape quotes in aria-label
+                aria_label_escaped = aria_label.replace('"', '\\"')
+                return f'[aria-label="{aria_label_escaped}"]'
+        except:
+            pass
+
+        # Strategy 5: Use placeholder
+        if placeholder:
+            placeholder_escaped = placeholder.replace('"', '\\"')
+            return f'[placeholder="{placeholder_escaped}"]'
+
+        # Strategy 6: Use autocomplete attribute
+        try:
+            autocomplete = element.get_attribute("autocomplete")
+            if autocomplete and autocomplete not in ['off', 'on']:
+                return f'{tag_name}[autocomplete="{autocomplete}"]'
+        except:
+            pass
+
+        # Strategy 7: Generate a unique path using nth-of-type
+        try:
+            selector = element.evaluate("""el => {
+                const path = [];
+                let current = el;
+                while (current && current.tagName) {
+                    let selector = current.tagName.toLowerCase();
+                    if (current.id) {
+                        return '#' + current.id + ' ' + path.join(' > ');
+                    }
+                    // Add nth-of-type if needed
+                    const parent = current.parentElement;
+                    if (parent) {
+                        const siblings = parent.querySelectorAll(':scope > ' + selector);
+                        if (siblings.length > 1) {
+                            const index = Array.from(siblings).indexOf(current) + 1;
+                            selector += ':nth-of-type(' + index + ')';
+                        }
+                    }
+                    path.unshift(selector);
+                    current = parent;
+                    // Stop at form or main content
+                    if (current && (current.tagName === 'FORM' || current.tagName === 'MAIN')) {
+                        path.unshift(current.tagName.toLowerCase() + (current.id ? '#' + current.id : ''));
+                        break;
+                    }
+                }
+                return path.join(' > ');
+            }""")
+            if selector:
+                return selector
+        except:
+            pass
+
+        return ""
+
+    def _is_inside_cookie_banner(self, element) -> bool:
+        """Check if element is inside a cookie consent banner."""
+        try:
+            # Check if any ancestor has cookie-related class/id
+            is_cookie = element.evaluate("""el => {
+                let parent = el;
+                while (parent) {
+                    const id = (parent.id || '').toLowerCase();
+                    const className = (parent.className || '').toLowerCase();
+                    const role = (parent.getAttribute('role') || '').toLowerCase();
+
+                    // Cookie banner indicators
+                    if (id.includes('cookie') || id.includes('consent') ||
+                        id.includes('gdpr') || id.includes('onetrust') ||
+                        id.includes('cookiebot') || id.includes('cc-') ||
+                        className.includes('cookie') || className.includes('consent') ||
+                        className.includes('gdpr') || className.includes('onetrust') ||
+                        className.includes('cookiebot') || className.includes('cc-banner') ||
+                        role === 'dialog' && (id.includes('cookie') || className.includes('cookie'))) {
+                        return true;
+                    }
+                    parent = parent.parentElement;
+                }
+                return false;
+            }""")
+            return is_cookie
+        except:
+            return False
+
+    def _is_cookie_related(self, text: str) -> bool:
+        """Check if field text suggests it's cookie-related."""
+        cookie_keywords = [
+            'cookie', 'consent', 'gdpr', 'tracking', 'analytics',
+            'performance', 'functional', 'targeting', 'advertising',
+            'onetrust', 'cookiebot', 'privacy-policy', 'cookie-policy'
+        ]
+        return any(kw in text for kw in cookie_keywords)
+
+    def _is_noise_label(self, label: str, name: str = "", id_attr: str = "") -> bool:
+        """Check if a label is noise/meaningless.
+
+        We're more lenient here - only skip clearly cookie-related fields.
+        Fields with 'Unknown' labels but valid names might still be legitimate.
+        """
+        label_lower = (label or "").lower().strip()
+        name_lower = (name or "").lower()
+        id_lower = (id_attr or "").lower()
+
+        # Exact noise labels to skip (only if no meaningful name/id)
+        noise_labels = [
+            'checkbox label',
+            'button',
+            'submit',
+            'cookie list search',
+            'tothr',
+        ]
+        if label_lower in noise_labels:
+            # But if it has a meaningful name, keep it
+            if name_lower and not self._is_cookie_related(name_lower):
+                return False
+            return True
+
+        # Cookie-related patterns to skip
+        cookie_patterns = [
+            'cookie',
+            'consent',
+            'gdpr',
+            'onetrust',
+            'cookiebot',
+        ]
+        if any(pattern in label_lower for pattern in cookie_patterns):
+            return True
+        if any(pattern in name_lower for pattern in cookie_patterns):
+            return True
+        if any(pattern in id_lower for pattern in cookie_patterns):
+            return True
+
+        return False
+
+        return False
 
     def _find_label(
         self, element, name: str, id_attr: str, placeholder: str
@@ -574,6 +1134,16 @@ class AutofillEngine:
         if name:
             return name.replace("_", " ").replace("-", " ").title()
 
+        # Try ID attribute as last resort (often contains semantic names like school--0)
+        if id_attr:
+             # Remove common suffixes/prefixes
+             clean_id = id_attr.replace("--", " ").replace("-", " ").replace("_", " ")
+             # Remove trailing numbers often used for arrays
+             import re
+             clean_id = re.sub(r'\d+$', '', clean_id).strip()
+             if clean_id and len(clean_id) > 2:
+                 return clean_id.title()
+
         return "Unknown"
 
     def fill_form(self, url: str, dry_run: bool = True, company: str = None) -> FormAnalysis:
@@ -599,11 +1169,11 @@ class AutofillEngine:
                 # First, try to get a value automatically
                 value = self._get_value_for_field(form_field, patterns)
 
-                element = self.page.query_selector(form_field.selector) if not value or form_field.field_type == FieldType.SELECT else None
+                element = self._get_element(form_field) if not value or form_field.field_type == FieldType.SELECT else None
 
                 # If no automatic value, try interactive mode
                 if not value and self.interactive:
-                    element = self.page.query_selector(form_field.selector)
+                    element = self._get_element(form_field)
                     if element:
                         value = self._ask_user_for_field(form_field, element)
 
@@ -633,6 +1203,16 @@ class AutofillEngine:
         analysis.success_rate = filled_count / total if total > 0 else 0.0
 
         print(f"\nSummary: {filled_count} filled, {skipped_count} skipped, {failed_count} failed")
+
+        # Update the injected button status
+        if total == 0:
+            self._update_autofill_button_status("No form fields found - navigate to form & click Autofill", success=False)
+        elif filled_count == total:
+            self._update_autofill_button_status(f"Filled all {filled_count} fields!", success=True)
+        elif filled_count > 0:
+            self._update_autofill_button_status(f"Filled {filled_count}/{total} fields", success=True)
+        else:
+            self._update_autofill_button_status("Could not fill fields - check form", success=False)
 
         # Take post-fill screenshot
         SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -667,6 +1247,11 @@ class AutofillEngine:
         label_lower = form_field.label.lower()
         name_lower = form_field.name.lower()
         combined = f"{label_lower} {name_lower}"
+        # print(f"DEBUG: Checking field '{combined}' (Type: {form_field.field_type})")
+        
+        # Verify profile is loaded
+        if "degree" in combined:
+             print(f"DEBUG: Degree detected. Profile degree: '{self.profile.degree}'")
 
         # Map fields to profile values
         if any(x in combined for x in ["first", "fname"]):
@@ -683,36 +1268,57 @@ class AutofillEngine:
             return self.profile.linkedin
         elif "github" in combined:
             return self.profile.github
-        elif any(x in combined for x in ["website", "portfolio", "personal"]):
+        elif any(x in combined for x in ["website", "portfolio", "personal"]) and len(combined) < 20:
             return self.profile.website
-        elif any(x in combined for x in ["school", "university", "college"]):
-            return self.profile.school
-        elif "graduation" in combined or "grad year" in combined:
-            return self.profile.graduation_year
         elif form_field.field_type == FieldType.FILE:
             return self.profile.resume_path if self.profile.resume_path else None
         elif form_field.field_type == FieldType.TEXTAREA:
             if any(x in combined for x in ["cover", "letter", "why", "interest"]):
                 return self.profile.cover_letter
-            return None
-        elif form_field.field_type == FieldType.SELECT:
-            # Handle common dropdowns with smart matching
-            if "authorization" in combined or "work auth" in combined:
-                return self.profile.work_authorization
-            if "sponsor" in combined:
-                return self.profile.requires_sponsorship
-            if "graduation" in combined or "grad date" in combined:
-                return f"{self.profile.graduation_month} {self.profile.graduation_year}"
-            # Check answer bank for this question
-            stored = self.answer_bank.get_answer(form_field.label, self.company)
-            if stored:
-                return stored
-            return None
+            # Continue to AI/Bank for other textareas
 
-        # For any field, check the answer bank as last resort
+        elif form_field.field_type == FieldType.SELECT:
+             # Check answer bank (Exact match) first for SELECT (optimization)
+             stored = self.answer_bank.get_answer(form_field.label, self.company)
+             if stored:
+                 return stored
+
+        # --- FALLBACK FOR ALL FIELDS (Text, Select, TextArea, etc.) ---
+        
+        # 1. Check Answer Bank (Exact Match)
         stored = self.answer_bank.get_answer(form_field.label, self.company)
         if stored:
             return stored
+            
+        # 2. Check Answer Bank (AI Context Match)
+        if self.llm and self.llm.is_available():
+             print(f"  [AI] Checking answer bank context for: {form_field.label}...")
+             context_match = self.llm.check_answer_bank(form_field.label, self.answer_bank.answers)
+             if context_match:
+                 print(f"  [AI] Found context match: {context_match[:30]}...")
+                 return context_match
+
+        # 3. AI Generate from Resume
+        if self.llm and self.llm.is_available() and self.resume_text:
+            print(f"  [AI] Generating answer from resume for: {form_field.label}...")
+            
+            # For Select fields, get options to constrain the AI
+            options = []
+            if form_field.field_type == FieldType.SELECT:
+                options_tuples = self._get_dropdown_options(self._get_element(form_field))
+                options = [text for _, text in options_tuples]
+            
+            # For pseudo-dropdowns (text fields acting as select), try to find options too?
+            # Hard to get options if it's not a select tag. 
+            # But the user mentioned "textbox/dropdowns". 
+            # We'll rely on AI to generate a good string.
+            
+            generated = self.llm.generate_answer_from_resume(form_field.label, self.resume_text, options)
+            if generated:
+                print(f"  [AI] Generated: {generated[:30]}...")
+                return generated
+
+        return None
 
         return None
 
@@ -776,16 +1382,29 @@ class AutofillEngine:
                 # Store for future use
                 self.answer_bank.store_answer(form_field.label, answer, self.company)
                 print(f"  Saved for future applications!")
-                return answer
-
         return None
+
+    def _get_element(self, form_field: FormField):
+        """Get the element handle, handling iframes if necessary."""
+        if form_field.iframe_url:
+            # Find the frame
+            for frame in self.page.frames:
+                if frame.url == form_field.iframe_url:
+                    return frame.query_selector(form_field.selector)
+            # Fallback if frame URL changed or not found
+            print(f"  [DEBUG] Frame not found for URL: {form_field.iframe_url[:30]}...")
+            return None
+        else:
+            return self.page.query_selector(form_field.selector)
 
     def _fill_field(self, form_field: FormField, value: str) -> bool:
         """Fill a single field with a value."""
         try:
-            element = self.page.query_selector(form_field.selector)
+            print(f"DEBUG: _fill_field called for '{form_field.label}' with value '{value}'")
+            element = self._get_element(form_field)
             if not element:
-                return False
+                 print(f"  [DEBUG] Element not found: {form_field.selector} (Frame: {form_field.iframe_url[:30]}...)")
+                 return False
 
             if form_field.field_type == FieldType.FILE:
                 if value and Path(value).exists():
@@ -812,7 +1431,40 @@ class AutofillEngine:
                     element.check()
             else:
                 # Text, email, phone, url, textarea
-                element.fill(value)
+                # Check if it's a "pseudo-dropdown" (text input that requires selection)
+                try:
+                    is_dropdown = False
+                    placeholder = element.get_attribute("placeholder") or ""
+                    outer_html = element.evaluate("el => el.outerHTML")
+                    print(f"  [DEBUG] Checking text field: '{form_field.label}' | Placeholder: '{placeholder}' | HTML: {outer_html[:100]}...")
+                    
+                    if "select" in placeholder.lower() or "choose" in placeholder.lower():
+                         is_dropdown = True
+                    
+                    # Also check for common "combobox" patterns
+                    if element.get_attribute("role") == "combobox":
+                        is_dropdown = True
+
+                    # Check for class names indicating a dropdown/select input
+                    class_attr = element.get_attribute("class") or ""
+                    if "select" in class_attr.lower() or "dropdown" in class_attr.lower():
+                        is_dropdown = True
+                        
+                    if is_dropdown:
+                        print(f"  [DEBUG] Detected pseudo-dropdown: {form_field.label}")
+                        # 1. Click to open
+                        element.click()
+                        self.page.wait_for_timeout(500)
+                        # 2. Type value to filter
+                        element.fill(value)
+                        self.page.wait_for_timeout(1000)
+                        # 3. Press Enter to select
+                        element.press("Enter")
+                    else:
+                        element.fill(value)
+                except Exception as e:
+                     print(f"  [DEBUG] Error filling text field (falling back to standard fill): {e}")
+                     element.fill(value)
 
             return True
 
